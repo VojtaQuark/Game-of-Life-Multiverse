@@ -1,0 +1,4133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game of Life Multiverse Table</title>
+<style>
+:root{
+  --pitch:72px;
+  --tile:62px;
+  --offset:5px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:#f6f6f8;
+  color:#1d1d1f;
+}
+button,input,select,label.tool{
+  font:inherit;
+  font-size:13px;
+}
+button,input,select,label.tool{
+  border:1px solid #b9b9bf;
+  border-radius:7px;
+  background:white;
+}
+button,label.tool{padding:7px 9px;cursor:pointer}
+button:hover,label.tool:hover{background:#f0f0f3}
+input,select{padding:7px 9px}
+
+header{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  min-height:56px;
+  padding:8px 12px;
+  background:rgba(255,255,255,.97);
+  border-bottom:1px solid #d4d4d8;
+  backdrop-filter:blur(8px);
+}
+h1{font-size:15px;margin:0 8px 0 0;white-space:nowrap}
+#bornInput{width:235px}
+#status{margin-left:auto;font-size:12px;color:#666;white-space:nowrap}
+.sep{width:1px;height:28px;background:#ddd}
+
+#patternChip{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:3px 8px 3px 4px;
+}
+#miniPattern{
+  width:34px;
+  height:34px;
+  display:block;
+  border:1px solid #d2d2d7;
+  border-radius:4px;
+  background:white;
+  image-rendering:pixelated;
+}
+#patternChipText{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  line-height:1.1;
+}
+#patternChipText small{font-size:9px;color:#777;text-transform:uppercase;letter-spacing:.4px}
+#patternChipText strong{font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+#customPanel{
+  display:none;
+  position:fixed;
+  z-index:900;
+  top:62px;
+  left:12px;
+  right:12px;
+  max-height:calc(100vh - 86px);
+  overflow:auto;
+  padding:13px;
+  border:1px solid #cfcfd4;
+  border-radius:10px;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 10px 32px rgba(0,0,0,.13);
+}
+#customPanel.open{display:block}
+.customGrid{
+  display:grid;
+  grid-template-columns:minmax(250px,1fr) minmax(360px,2fr) minmax(270px,1fr);
+  gap:18px;
+}
+.customSection{
+  min-width:0;
+  padding-right:16px;
+  border-right:1px solid #e5e5e8;
+}
+.customSection:last-child{border-right:0;padding-right:0}
+.customSection h3{font-size:13px;margin:0 0 9px}
+.customSection p{font-size:11px;color:#666;margin:5px 0 10px;line-height:1.35}
+.row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.mode.active{background:#1d1d1f;color:white;border-color:#1d1d1f}
+#paintColor{width:44px;height:32px;padding:2px}
+.sizePalette{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(105px,1fr));
+  gap:7px;
+}
+.paletteItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+  padding:5px 7px;
+  border:1px solid #e3e3e7;
+  border-radius:7px;
+  font-size:11px;
+}
+.paletteItem input{width:34px;height:26px;padding:1px;border:0}
+.smallNote{font-size:10px;color:#777}
+
+#viewport{
+  height:calc(100vh - 57px);
+  overflow:auto;
+  background:#fbfbfc;
+}
+#stageWrap{
+  transform-origin:top left;
+  width:max-content;
+  height:max-content;
+}
+#stage{
+  position:relative;
+  margin:20px;
+  min-width:3400px;
+  min-height:3100px;
+  background:
+    linear-gradient(#ededf0 1px,transparent 1px),
+    linear-gradient(90deg,#ededf0 1px,transparent 1px);
+  background-size:var(--pitch) var(--pitch);
+}
+.tile{
+  position:absolute;
+  width:var(--tile);
+  height:var(--tile);
+  border:1px solid #aaaab0;
+  border-radius:5px;
+  display:block;
+  padding:3px 3px 1px;
+  font-size:12px;
+  font-weight:700;
+  user-select:none;
+  touch-action:none;
+  z-index:5;
+  overflow:visible;
+  transition:opacity .12s,background .12s,box-shadow .12s,outline .12s,transform .12s;
+}
+.tile:hover{box-shadow:0 2px 10px rgba(0,0,0,.13)}
+.tile.selected{box-shadow:inset 0 0 0 3px #087cff,0 2px 10px rgba(0,0,0,.12)}
+.tile.dragging{z-index:60;cursor:grabbing;transition:none;box-shadow:0 8px 22px rgba(0,0,0,.25)}
+.outcomeCanvas{
+  display:block;
+  width:48px;
+  height:48px;
+  margin:0 auto;
+  border-radius:2px;
+  image-rendering:pixelated;
+  background:rgba(255,255,255,.33);
+}
+.tileLabel{
+  height:9px;
+  line-height:9px;
+  text-align:center;
+  font-size:8px;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.tile.calculating .outcomeCanvas{opacity:.45}
+.tile.calculated .tileLabel{background:rgba(255,255,255,.72);border-radius:2px}
+.tile.search-match{
+  opacity:1;
+  box-shadow:0 0 0 3px #e4ca4a,0 2px 10px rgba(0,0,0,.12);
+  z-index:24;
+}
+.tile.search-exact{
+  opacity:1;
+  outline:5px solid #a81912;
+  outline-offset:2px;
+  box-shadow:0 0 18px rgba(255,75,65,.38);
+  transform:scale(1.09);
+  z-index:35;
+}
+.tile.search-hidden{
+  opacity:.055;
+  filter:grayscale(.8);
+  z-index:2;
+}
+.tile.conway-universe{
+  border:2px solid #6b3fa0;
+  box-shadow:0 0 0 2px rgba(107,63,160,.20);
+}
+.tile.conway-universe.search-hidden{opacity:.36;filter:none}
+.conwayBadge{
+  position:absolute;
+  right:-7px;
+  top:-7px;
+  min-width:16px;
+  height:16px;
+  padding:0 3px;
+  border-radius:8px;
+  background:#6b3fa0;
+  color:white;
+  font-size:8px;
+  line-height:16px;
+  text-align:center;
+  font-weight:800;
+  z-index:80;
+  pointer-events:none;
+}
+
+#selectionBox{
+  position:absolute;
+  display:none;
+  border:2px solid #087cff;
+  background:rgba(0,122,255,.09);
+  pointer-events:none;
+  z-index:70;
+}
+#linesLayer{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  z-index:20;
+}
+#linesLayer.editing{pointer-events:auto}
+.gridEdge{
+  stroke:transparent;
+  stroke-width:16;
+  cursor:crosshair;
+  pointer-events:stroke;
+}
+.gridEdge.visible{
+  stroke:#111;
+  stroke-width:5;
+  pointer-events:stroke;
+}
+.gridEdge.visible:hover{stroke-width:7}
+.gridEdge.guide{
+  stroke:rgba(0,122,255,.16);
+  stroke-width:2;
+  pointer-events:stroke;
+}
+
+/* Pattern editor */
+#patternModal{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:2000;
+  background:rgba(20,20,24,.42);
+  padding:24px;
+  align-items:center;
+  justify-content:center;
+}
+#patternModal.open{display:flex}
+.patternDialog{
+  width:min(980px,96vw);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:12px;
+  border:1px solid #d5d5da;
+  box-shadow:0 18px 60px rgba(0,0,0,.28);
+}
+.patternHeader{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  border-bottom:1px solid #e3e3e7;
+}
+.patternHeader h2{font-size:16px;margin:0}
+.patternHeader button{margin-left:auto}
+.patternBody{
+  display:grid;
+  grid-template-columns:auto minmax(250px,1fr);
+  gap:18px;
+  padding:16px;
+}
+#patternCanvas{
+  width:512px;
+  height:512px;
+  max-width:60vw;
+  max-height:60vw;
+  border:1px solid #777;
+  background:white;
+  image-rendering:pixelated;
+  touch-action:none;
+  cursor:crosshair;
+}
+.patternSide h3{font-size:13px;margin:0 0 8px}
+.patternSide p{font-size:11px;color:#666;line-height:1.4}
+.patternSide input[type=text]{width:100%}
+.patternList{
+  margin-top:8px;
+  max-height:210px;
+  overflow:auto;
+  border:1px solid #e1e1e5;
+  border-radius:7px;
+}
+.soupBox{
+  padding:9px;
+  border:1px solid #e2e2e6;
+  border-radius:8px;
+  background:#fafafc;
+}
+.soupBox label{
+  font-size:11px;
+  color:#555;
+}
+
+.patternRow{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:6px 8px;
+  border-bottom:1px solid #ededf0;
+  font-size:12px;
+}
+.patternRow:last-child{border-bottom:0}
+.patternRow.active{background:#f3f6ff}
+.patternRow .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.patternFooter{
+  padding:10px 14px 14px;
+  border-top:1px solid #ececf0;
+  font-size:11px;
+  color:#666;
+}
+
+
+#calcProgress{
+  display:none;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:#666;
+}
+#calcProgress.show{display:flex}
+#calcBar{width:110px;height:6px;border-radius:4px;background:#e5e5e8;overflow:hidden}
+#calcBarFill{height:100%;width:0;background:#555;transition:width .15s}
+
+#universeModal{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:2100;
+  background:rgba(20,20,24,.42);
+  padding:24px;
+  align-items:center;
+  justify-content:center;
+}
+#universeModal.open{display:flex}
+.universeDialog{
+  width:min(1500px,98vw);
+  max-height:94vh;
+  overflow:auto;
+  background:white;
+  border-radius:12px;
+  border:1px solid #d5d5da;
+  box-shadow:0 18px 60px rgba(0,0,0,.28);
+  display:grid;
+  grid-template-columns:minmax(430px,500px) minmax(760px,1fr);
+  grid-template-rows:auto auto;
+}
+.universeHeader{grid-column:1 / -1}
+.universeBody{
+  grid-column:1;
+  grid-row:2;
+  display:block !important;
+  padding:16px;
+  min-width:0;
+}
+.universeBody .universeSide{
+  margin-top:16px;
+}
+.ruleLab{
+  grid-column:2;
+  grid-row:2;
+  border-top:0 !important;
+  border-left:1px solid #e3e3e7;
+  min-width:0;
+}
+
+.universeHeader{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  border-bottom:1px solid #e3e3e7;
+}
+.universeHeader h2{font-size:16px;margin:0}
+.universeHeader .spacer{flex:1}
+.universeBody{
+  display:grid;
+  grid-template-columns:auto minmax(250px,1fr);
+  gap:20px;
+  padding:16px;
+}
+.survivalMatrix{
+  display:grid;
+  grid-template-columns:repeat(9,38px) 34px;
+  grid-template-rows:34px repeat(9,38px);
+  gap:2px;
+  align-items:stretch;
+}
+.axisCell,.axisCorner{
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:#666;font-weight:700;
+}
+.survivalCell{
+  border:1px solid rgba(0,0,0,.16);
+  border-radius:3px;
+  padding:0;
+  min-width:0;
+  cursor:pointer;
+  position:relative;
+}
+.survivalCell:hover{outline:2px solid #111;outline-offset:1px}
+.survivalCell.selectedRule{outline:3px solid #111;outline-offset:1px}
+.survivalCell.conway-rule::after{
+  content:"C";
+  position:absolute;
+  inset:4px;
+  border:3px solid #6b3fa0;
+  border-radius:3px;
+  color:#6b3fa0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:900;
+  background:rgba(255,255,255,.38);
+}
+.survivalCell.no-survival{
+  grid-column:1;
+  grid-row:10;
+  font-size:12px;
+  font-weight:850;
+  color:#333;
+}
+.survivalCell.inverse-result::after{
+  content:"⁻¹";
+  position:absolute;
+  top:1px;
+  right:2px;
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  color:rgba(0,0,0,.78);
+  text-shadow:0 0 2px rgba(255,255,255,.9);
+}
+.inverseNotation{
+  font-weight:850;
+  white-space:nowrap;
+}
+
+.universeSide h3{font-size:13px;margin:0 0 8px}
+.universeSide p{font-size:12px;color:#555;line-height:1.45}
+.ruleReadout{
+  padding:10px;
+  border:1px solid #e0e0e5;
+  border-radius:8px;
+  background:#fafafa;
+  min-height:90px;
+  font-size:12px;
+  line-height:1.45;
+}
+.outcomeLegend{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:5px 10px;margin-top:12px}
+.legendItem{display:flex;align-items:center;gap:6px;font-size:11px;color:#555}
+.legendSwatch{width:13px;height:13px;border:1px solid rgba(0,0,0,.18);border-radius:2px}
+.conwayNote{
+  padding:9px 10px;
+  border-left:4px solid #6b3fa0;
+  background:#f8f4ff;
+  border-radius:5px;
+  font-size:12px;
+  margin:9px 0;
+}
+
+.ruleLab{
+  border-top:1px solid #e3e3e7;
+  padding:16px;
+  background:#fcfcfd;
+}
+.ruleLabHeader{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.ruleLabHeader h3{
+  margin:0;
+  font-size:14px;
+}
+.ruleLabHeader .spacer{flex:1}
+.ruleLabGrid{
+  display:grid;
+  grid-template-columns:minmax(620px,760px) minmax(230px,1fr);
+  gap:18px;
+  align-items:start;
+}
+.labBoardWrap{
+  min-width:0;
+}
+#labBoardWrapEl{
+  min-width:0;
+}
+#labCanvasShell{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height:640px;
+  padding:8px;
+  border:1px solid #dedee3;
+  border-radius:8px;
+  background:#f7f7f9;
+}
+#labCanvas{
+  display:block;
+  width:min(720px,100%);
+  aspect-ratio:1;
+  border:1px solid #6f6f74;
+  border-radius:5px;
+  background:#fff;
+  image-rendering:pixelated;
+  touch-action:none;
+  cursor:crosshair;
+}
+#labBoardWrapEl:fullscreen{
+  background:#f5f5f7;
+  padding:18px;
+  overflow:auto;
+}
+#labBoardWrapEl:fullscreen #labCanvasShell{
+  min-height:calc(100vh - 120px);
+  border:0;
+  background:#f5f5f7;
+}
+#labBoardWrapEl:fullscreen #labCanvas{
+  width:min(88vmin,1100px);
+}
+#labBoardWrapEl:fullscreen .labControls{
+  justify-content:center;
+}
+.labViewControls{
+  display:flex;
+  gap:5px;
+  align-items:center;
+}
+
+.labControls{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+.labControls button,.labControls select{font-size:12px}
+.labSide{
+  min-width:0;
+}
+.labSide h4{
+  font-size:12px;
+  margin:0 0 7px;
+}
+.labMeta{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:5px 10px;
+  padding:9px 10px;
+  border:1px solid #e2e2e6;
+  border-radius:8px;
+  background:#fff;
+  font-size:11px;
+  line-height:1.35;
+}
+.labMeta b{font-weight:750}
+.labHint{
+  margin:9px 0 0;
+  font-size:11px;
+  line-height:1.4;
+  color:#666;
+}
+.timelineHeader{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  margin-top:15px;
+}
+.timelineHeader h4{
+  margin:0;
+  font-size:12px;
+}
+.timelineHeader span{
+  font-size:10px;
+  color:#777;
+}
+#generationTimeline{
+  display:flex;
+  gap:5px;
+  overflow-x:auto;
+  padding:7px 2px 9px;
+  scrollbar-width:thin;
+}
+.genCard{
+  flex:0 0 auto;
+  width:62px;
+  padding:4px;
+  border:1px solid #dedee3;
+  border-radius:6px;
+  background:white;
+  cursor:pointer;
+}
+.genCard:hover{border-color:#777}
+.genCard.current{
+  border:2px solid #111;
+  padding:3px;
+}
+.genCard.edited{
+  box-shadow:inset 0 0 0 2px #b96c00;
+}
+.genCard.decision{
+  border:3px solid #7a3db8;
+  padding:2px;
+  background:#f7efff;
+}
+.genCard.decision.current{
+  border-color:#111;
+  box-shadow:0 0 0 3px #b77be8;
+}
+.paletteOutcome{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(130px,1fr));
+  gap:7px;
+}
+.paletteOutcome .paletteItem{min-width:0}
+.simSetting{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  padding:7px 0;
+}
+.simSetting input[type=number]{width:90px}
+
+.genCard canvas{
+  display:block;
+  width:52px;
+  height:52px;
+  image-rendering:pixelated;
+  background:#fff;
+}
+.genCard span{
+  display:block;
+  text-align:center;
+  margin-top:2px;
+  font-size:9px;
+  color:#666;
+}
+.labBranchNote{
+  display:none;
+  margin-top:8px;
+  padding:7px 9px;
+  border-left:3px solid #b96c00;
+  border-radius:4px;
+  background:#fff8eb;
+  font-size:11px;
+  color:#654100;
+}
+.labBranchNote.show{display:block}
+
+.growthHighlightNote{
+  display:none;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:8px;
+  padding:7px 9px;
+  border:1px solid #dfe5df;
+  border-radius:6px;
+  background:#fbfffb;
+  font-size:10px;
+  color:#555;
+}
+.growthHighlightNote.show{display:flex}
+.growthKey{
+  width:13px;height:13px;
+  display:inline-block;
+  border-radius:2px;
+  margin-left:5px;
+}
+.growthKey.repeated{
+  border:2px solid #ef8a17;
+  background:rgba(239,138,23,.12);
+}
+.growthKey.context{
+  border:2px dashed #ef8a17;
+  background:rgba(239,138,23,.035);
+}
+.growthKey.added{
+  border:2px solid #00a56a;
+  background:rgba(0,165,106,.20);
+}
+
+@media(max-width:1050px){
+  .universeDialog{
+    display:block;
+    width:min(960px,98vw);
+  }
+  .ruleLab{
+    border-left:0 !important;
+    border-top:1px solid #e3e3e7 !important;
+  }
+}
+@media(max-width:900px){
+  .ruleLabGrid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .universeBody{grid-template-columns:1fr}
+  .survivalMatrix{grid-template-columns:repeat(9,30px) 26px;grid-template-rows:26px repeat(9,30px)}
+}
+
+@media(max-width:900px){
+  .customGrid{grid-template-columns:1fr}
+  .customSection{border-right:0;border-bottom:1px solid #e5e5e8;padding:0 0 14px}
+  .patternBody{grid-template-columns:1fr}
+  #patternCanvas{max-width:88vw;max-height:88vw}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Game of Life Multiverse</h1>
+
+  <input id="bornInput" placeholder="Find Born sets containing: e.g. 01">
+  <button id="clearSearchBtn">Clear</button>
+
+  <span class="sep"></span>
+
+  <button id="patternChip" title="Choose the starting Game of Life pattern">
+    <canvas id="miniPattern" width="64" height="64"></canvas>
+    <span id="patternChipText">
+      <small>Starting pattern</small>
+      <strong id="activePatternName">Single cell</strong>
+    </span>
+  </button>
+
+  <button id="calculateBtn">Calculate multiverse</button>
+  <button id="cancelCalcBtn" style="display:none">Cancel</button>
+  <span id="calcProgress"><span id="calcBar"><span id="calcBarFill"></span></span><span id="calcProgressText">0 / 512</span></span>
+
+  <button id="customizeBtn">Customize ▾</button>
+
+  <span class="sep"></span>
+  <button id="zoomOutBtn">−</button>
+  <span id="zoomLabel" style="font-size:12px;min-width:42px;text-align:center">100%</span>
+  <button id="zoomInBtn">+</button>
+
+  <span id="status">Ready</span>
+</header>
+
+<div id="customPanel">
+  <div class="customGrid">
+    <section class="customSection">
+      <h3>Edit table</h3>
+      <div class="row">
+        <button class="mode" id="moveModeBtn">Move cells</button>
+        <button class="mode" id="colorModeBtn">Paint cells</button>
+        <button class="mode" id="lineModeBtn">Dividers</button>
+      </div>
+      <p>Editing is only active while Customize is open. Search remains available all the time.</p>
+
+      <div class="row">
+        <label>Paint <input id="paintColor" type="color" value="#dcefdc"></label>
+        <button id="eraseColorBtn">Erase selected color</button>
+        <button id="clearManualColorsBtn">Clear all manual colors</button>
+      </div>
+    </section>
+
+    <section class="customSection">
+      <h3>Automatic color by Born-set size</h3>
+      <p>These are intentionally very light. A tile uses this palette unless you manually paint that individual tile.</p>
+      <div id="sizePalette" class="sizePalette"></div>
+      <div class="row" style="margin-top:9px">
+        <button id="resetPaletteBtn">Reset light palette</button>
+      </div>
+
+      <h3 style="margin-top:16px">Outcome colors</h3>
+      <p>These colors are used inside every 9×9 Survival-result grid. Average mode blends them proportionally.</p>
+      <div id="outcomePalette" class="paletteOutcome"></div>
+      <div class="row" style="margin-top:9px">
+        <button id="resetOutcomePaletteBtn">Reset outcome colors</button>
+      </div>
+    </section>
+
+    <section class="customSection">
+      <h3>Simulation</h3>
+      <div class="simSetting">
+        <label>Maximum generations
+          <input id="maxGenerationsInput" type="number" min="10" max="10000" step="10" value="50">
+        </label>
+      </div>
+      <p>Default classification checkpoint: 50 generations. Raise it here when you want a deeper search. In the rule laboratory, Likely growing and Undecided can continue generating indefinitely beyond the checkpoint.</p>
+
+      <h3 style="margin-top:18px">Save / transfer</h3>
+      <div class="row">
+        <button id="saveBtn">Save in browser</button>
+        <button id="exportBtn">Export JSON</button>
+        <label class="tool">Import JSON<input id="importFile" type="file" accept=".json,application/json" hidden></label>
+      </div>
+      <p>The export now includes positions, manual colors, size palette, divider lines, saved starting patterns, and the selected analysis input.</p>
+    </section>
+  </div>
+</div>
+
+<div id="viewport">
+  <div id="stageWrap">
+    <div id="stage">
+      <svg id="linesLayer"></svg>
+      <div id="selectionBox"></div>
+    </div>
+  </div>
+</div>
+
+
+<div id="universeModal">
+  <div class="universeDialog">
+    <div class="universeHeader">
+      <h2 id="universeTitle">Universe</h2>
+      <span id="universeSubtitle" class="smallNote"></span>
+      <span class="spacer"></span>
+      <button id="calcThisUniverseBtn">Calculate this universe</button>
+      <button id="closeUniverseBtn">Close</button>
+    </div>
+    <div class="universeBody">
+      <div>
+        <div id="survivalMatrix" class="survivalMatrix"></div>
+        <p class="smallNote" style="margin:8px 0 0 34px">Columns = maximum Survival · row numbers on the right = minimum Survival</p>
+      </div>
+      <div class="universeSide">
+        <h3>Rule information</h3>
+        <div id="universeConwayNote"></div>
+        <div id="ruleReadout" class="ruleReadout">Choose a Survival cell to inspect it.</div>
+        <div id="outcomeLegend" class="outcomeLegend"></div>
+        <p id="universeCalcNote">This universe has not been calculated for the active starting pattern yet.</p>
+      </div>
+    </div>
+    <div class="ruleLab" id="ruleLab">
+      <div class="ruleLabHeader">
+        <h3 id="labRuleTitle">Rule laboratory</h3>
+        <span id="labGenerationLabel" class="smallNote">Generation 0</span>
+        <span class="spacer"></span>
+        <label class="smallNote">Source pattern
+          <select id="labPatternSelect"></select>
+        </label>
+      </div>
+
+      <div class="ruleLabGrid">
+        <div class="labBoardWrap" id="labBoardWrapEl">
+          <div id="labCanvasShell">
+            <canvas id="labCanvas" width="768" height="768"></canvas>
+          </div>
+          <div class="labControls">
+            <button id="labPrevBtn" type="button">◀ Prev</button>
+            <button id="labPlayBtn" type="button">▶ Play</button>
+            <button id="labNextBtn" type="button">Next ▶</button>
+            <select id="labSpeed" title="Playback speed">
+              <option value="1">1 gen/s</option>
+              <option value="2">2 gen/s</option>
+              <option value="4" selected>4 gen/s</option>
+              <option value="8">8 gen/s</option>
+              <option value="12">12 gen/s</option>
+            </select>
+            <button id="labResetBtn" type="button">Reset from pattern</button>
+            <button id="labClearBtn" type="button">Clear board</button>
+            <span class="labViewControls">
+              <button id="labZoomOutBtn" type="button" title="Zoom out">−</button>
+              <button id="labFitBtn" type="button">Fit</button>
+              <button id="labZoomInBtn" type="button" title="Zoom in">+</button>
+              <span id="labViewLabel" class="smallNote">32×32</span>
+            </span>
+            <select id="labViewMode" title="Infinite-plane viewport">
+              <option value="auto" selected>Auto-fit</option>
+              <option value="8">8×8</option>
+              <option value="16">16×16</option>
+              <option value="32">32×32</option>
+              <option value="64">64×64</option>
+              <option value="128">128×128</option>
+              <option value="256">256×256</option>
+              <option value="512">512×512</option>
+            </select>
+            <button id="labFullscreenBtn" type="button">⛶ Full screen</button>
+            <button id="labUseMultiverseBtn" type="button">Use board → recalculate multiverse</button>
+          </div>
+          <div id="labBranchNote" class="labBranchNote">
+            Local experiment branch: edits here do not alter the saved starting pattern or the multiverse results.
+          </div>
+          <div id="growthHighlightNote" class="growthHighlightNote">
+            <span class="growthKey repeated"></span> repeated structure
+            <span class="growthKey context"></span> verified neighbor context
+            <span class="growthKey added"></span> additional structure outside context
+          </div>
+          <p class="labHint">
+            Left-click / drag = make cells alive. Right-click / drag = erase. Editing any generation cuts off its old future and recalculates the trajectory from that point.
+          </p>
+        </div>
+
+        <div class="labSide">
+          <h4>Selected rule</h4>
+          <div class="labMeta">
+            <b>Rule</b><span id="labRuleText">—</span>
+            <b>Born</b><span id="labBornText">—</span>
+            <b>Survive</b><span id="labSurviveText">—</span>
+            <b>Alive now</b><span id="labAliveText">0</span>
+            <b>Background</b><span id="labBackgroundDynamicsText">—</span>
+            <b>Expansion</b><span id="labGrowthRateText">—</span>
+            <b>Conclusion</b><span id="labConclusionText">—</span>
+            <b>Board model</b><span>Infinite plane = uniform dead/alive background + finite exceptions</span>
+            <b>Trajectory</b><span id="labTrajectoryText">Generations 0–40</span>
+          </div>
+          <p class="labHint">
+            The simulator represents both “all dead except these live cells” and “all alive except these dead cells” exactly. The trajectory stops when its outcome is known; Undecided is the only result that reaches the generation limit.
+          </p>
+        </div>
+      </div>
+
+      <div class="timelineHeader">
+        <h4>All generated states</h4>
+        <span>Click any generation to inspect or edit it.</span>
+      </div>
+      <div id="generationTimeline"></div>
+    </div>
+  </div>
+</div>
+
+<div id="patternModal">
+  <div class="patternDialog">
+    <div class="patternHeader">
+      <h2>Starting pattern</h2>
+      <span class="smallNote">32 × 32 initial board</span>
+      <button id="closePatternBtn">Close</button>
+    </div>
+
+    <div class="patternBody">
+      <div>
+        <canvas id="patternCanvas" width="512" height="512"></canvas>
+        <div class="row" style="margin-top:9px">
+          <button id="clearPatternBtn">Clear board</button>
+          <button id="invertPatternBtn">Invert</button>
+          <button id="centerPatternBtn">Center live cells</button>
+        </div>
+        <p class="smallNote">Left-click / drag = draw live cells. Right-click / drag = erase.</p>
+      </div>
+
+      <div class="patternSide">
+        <h3>Save this board</h3>
+        <input id="patternNameInput" type="text" placeholder="Pattern name">
+        <div class="row" style="margin-top:7px">
+          <button id="saveNewPatternBtn">Save as new</button>
+          <button id="updatePatternBtn">Update selected</button>
+        </div>
+
+        <h3 style="margin-top:18px">Outcome input</h3>
+        <select id="analysisMode">
+          <option value="single">Single pattern</option>
+          <option value="average">Average of selected patterns</option>
+        </select>
+        <p>
+          Single mode evaluates one saved starting pattern. Average mode evaluates every selected pattern and blends their outcome distribution in the multiverse table.
+        </p>
+
+        <h3 style="margin-top:18px">Random soup</h3>
+        <div class="soupBox">
+          <div class="row">
+            <label>Fill
+              <input id="soupDensity" type="number" min="0" max="100" step="1" value="35" style="width:72px"> %
+            </label>
+            <label>Region
+              <select id="soupSize">
+                <option value="8">8×8</option>
+                <option value="12">12×12</option>
+                <option value="16" selected>16×16</option>
+                <option value="24">24×24</option>
+                <option value="32">32×32</option>
+              </select>
+            </label>
+            <label>Soups
+              <input id="soupCount" type="number" min="1" max="100" step="1" value="10" style="width:70px">
+            </label>
+          </div>
+          <div class="row" style="margin-top:7px">
+            <label style="flex:1">Seed
+              <input id="soupSeed" type="text" value="multiverse" style="width:160px">
+            </label>
+            <button id="generateSoupBtn" type="button">Generate + use average</button>
+          </div>
+          <p class="smallNote" style="margin:7px 0 0">
+            Creates reproducible random finite patterns on the infinite plane. Same seed + settings = same soups.
+          </p>
+        </div>
+
+        <h3>Starting grids / saved patterns</h3>
+        <p class="smallNote" style="margin:0 0 7px">Built-ins: Single cell · Glider · All dead · All alive · Single dead cell.</p>
+        <div id="patternList" class="patternList"></div>
+        <div class="row" style="margin-top:8px">
+          <button id="loadPatternBtn">Load selected into editor</button>
+          <button id="deletePatternBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="patternFooter">
+      Patterns are stored as finite live-cell coordinates on an infinite plane. Average mode can use hand-drawn patterns or reproducible random soups.
+    </div>
+  </div>
+</div>
+
+<script>
+const PITCH=72, TILE=62, OFFSET=5, PATTERN_N=32;
+const INITIAL_POSITIONS=[[0,5,6],[1,5,7],[2,12,7],[3,5,8],[4,19,6],[5,6,8],[6,13,7],[7,6,9],[8,25,5],[9,7,8],[10,14,7],[11,7,9],[12,20,6],[13,7,10],[14,14,8],[15,6,10],[16,30,4],[17,8,8],[18,15,7],[19,8,9],[20,21,6],[21,8,10],[22,15,8],[23,6,11],[24,26,5],[25,8,11],[26,15,9],[27,7,11],[28,21,7],[29,1,11],[30,14,9],[31,1,21],[32,34,3],[33,9,8],[34,16,7],[35,9,9],[36,22,6],[37,9,10],[38,16,8],[39,6,12],[40,27,5],[41,9,11],[42,16,9],[43,7,12],[44,22,7],[45,2,11],[46,14,10],[47,2,20],[48,31,4],[49,9,12],[50,16,10],[51,8,12],[52,22,8],[53,2,12],[54,15,10],[55,2,21],[56,27,6],[57,1,12],[58,16,14],[59,1,17],[60,21,8],[61,6,17],[62,14,18],[63,1,26],[64,37,2],[65,10,8],[66,17,7],[67,10,9],[68,23,6],[69,10,10],[70,17,8],[71,6,13],[72,28,5],[73,10,11],[74,17,9],[75,7,13],[76,23,7],[77,3,11],[78,14,11],[79,3,19],[80,32,4],[81,10,12],[82,17,10],[83,8,13],[84,23,8],[85,3,12],[86,15,11],[87,3,20],[88,28,6],[89,1,13],[90,17,15],[91,1,18],[92,21,9],[93,7,17],[94,15,18],[95,2,26],[96,35,3],[97,10,13],[98,17,11],[99,9,13],[100,23,9],[101,3,13],[102,16,11],[103,3,21],[104,28,7],[105,2,13],[106,17,14],[107,2,17],[108,22,9],[109,7,18],[110,15,19],[111,2,27],[112,32,5],[113,1,8],[114,16,15],[115,3,22],[116,23,12],[117,6,18],[118,14,19],[119,1,27],[120,27,7],[121,10,17],[122,18,20],[123,5,26],[124,22,15],[125,10,26],[126,14,22],[127,1,30],[128,39,1],[129,11,8],[130,18,7],[131,11,9],[132,24,6],[133,11,10],[134,18,8],[135,6,14],[136,29,5],[137,11,11],[138,18,9],[139,7,14],[140,24,7],[141,4,11],[142,14,12],[143,4,18],[144,33,4],[145,11,12],[146,18,10],[147,8,14],[148,24,8],[149,4,12],[150,15,12],[151,4,19],[152,29,6],[153,1,14],[154,18,14],[155,1,19],[156,21,10],[157,8,17],[158,16,18],[159,3,26],[160,36,3],[161,11,13],[162,18,11],[163,9,14],[164,24,9],[165,4,13],[166,16,12],[167,4,20],[168,29,7],[169,2,14],[170,18,15],[171,2,18],[172,22,10],[173,8,18],[174,16,19],[175,3,27],[176,33,5],[177,2,8],[178,16,16],[179,4,22],[180,23,13],[181,6,19],[182,14,20],[183,2,28],[184,27,8],[185,11,17],[186,19,20],[187,6,26],[188,23,15],[189,11,26],[190,15,22],[191,2,30],[192,38,2],[193,11,14],[194,18,12],[195,10,14],[196,24,10],[197,4,14],[198,17,12],[199,4,21],[200,29,8],[201,3,14],[202,18,16],[203,3,17],[204,23,10],[205,8,19],[206,16,20],[207,3,28],[208,33,6],[209,2,9],[210,17,16],[211,4,23],[212,24,13],[213,7,19],[214,15,20],[215,1,28],[216,28,8],[217,11,18],[218,19,21],[219,6,27],[220,23,16],[221,11,27],[222,15,23],[223,2,31],[224,36,4],[225,1,9],[226,14,14],[227,3,23],[228,24,12],[229,8,21],[230,18,18],[231,1,33],[232,27,10],[233,10,18],[234,18,21],[235,5,27],[236,22,16],[237,10,27],[238,14,23],[239,1,31],[240,32,6],[241,11,23],[242,19,23],[243,8,26],[244,22,18],[245,8,30],[246,14,25],[247,4,30],[248,28,11],[249,11,31],[250,17,22],[251,8,33],[252,22,20],[253,11,33],[254,14,27],[255,1,34],[256,40,0],[257,12,8],[258,19,7],[259,12,9],[260,25,6],[261,12,10],[262,19,8],[263,6,15],[264,30,5],[265,12,11],[266,19,9],[267,7,15],[268,25,7],[269,5,11],[270,14,13],[271,5,17],[272,34,4],[273,12,12],[274,19,10],[275,8,15],[276,25,8],[277,5,12],[278,15,13],[279,5,18],[280,30,6],[281,1,15],[282,19,14],[283,1,20],[284,21,11],[285,9,17],[286,17,18],[287,4,26],[288,37,3],[289,12,13],[290,19,11],[291,9,15],[292,25,9],[293,5,13],[294,16,13],[295,5,19],[296,30,7],[297,2,15],[298,19,15],[299,2,19],[300,22,11],[301,9,18],[302,17,19],[303,4,27],[304,34,5],[305,3,8],[306,16,17],[307,5,22],[308,23,14],[309,6,20],[310,14,21],[311,1,29],[312,27,9],[313,12,17],[314,20,20],[315,7,26],[316,24,15],[317,12,26],[318,16,22],[319,3,30],[320,39,2],[321,12,14],[322,19,12],[323,10,15],[324,25,10],[325,5,14],[326,17,13],[327,5,20],[328,30,8],[329,4,15],[330,19,16],[331,3,18],[332,23,11],[333,9,19],[334,17,20],[335,4,28],[336,34,6],[337,3,9],[338,17,17],[339,5,23],[340,24,14],[341,7,20],[342,15,21],[343,2,29],[344,28,9],[345,12,18],[346,20,21],[347,7,27],[348,24,16],[349,12,27],[350,16,23],[351,3,31],[352,37,4],[353,1,10],[354,15,14],[355,3,24],[356,25,12],[357,9,21],[358,19,18],[359,2,33],[360,28,10],[361,10,19],[362,19,22],[363,5,28],[364,22,17],[365,10,28],[366,14,24],[367,1,32],[368,32,8],[369,12,23],[370,20,23],[371,9,26],[372,23,18],[373,9,30],[374,15,25],[375,5,30],[376,29,11],[377,12,31],[378,18,22],[379,9,33],[380,23,20],[381,12,33],[382,15,27],[383,2,34],[384,40,1],[385,12,15],[386,19,13],[387,11,15],[388,25,11],[389,5,15],[390,18,13],[391,5,21],[392,30,9],[393,3,15],[394,19,17],[395,4,17],[396,24,11],[397,9,20],[398,17,21],[399,4,29],[400,34,7],[401,3,10],[402,18,17],[403,5,24],[404,25,14],[405,8,20],[406,16,21],[407,3,29],[408,29,9],[409,12,19],[410,21,22],[411,7,28],[412,24,17],[413,12,28],[414,16,24],[415,3,32],[416,37,5],[417,2,10],[418,15,15],[419,4,24],[420,25,13],[421,9,22],[422,19,19],[423,3,33],[424,29,10],[425,11,19],[426,20,22],[427,6,28],[428,23,17],[429,11,28],[430,15,24],[431,2,32],[432,32,7],[433,11,24],[434,20,24],[435,9,27],[436,22,19],[437,9,31],[438,15,26],[439,5,31],[440,29,12],[441,12,32],[442,18,23],[443,10,33],[444,24,20],[445,12,34],[446,16,27],[447,3,34],[448,39,3],[449,4,10],[450,14,15],[451,6,24],[452,25,15],[453,8,22],[454,18,19],[455,4,33],[456,30,10],[457,12,20],[458,21,23],[459,7,29],[460,24,18],[461,10,29],[462,16,25],[463,4,32],[464,33,7],[465,12,24],[466,19,24],[467,8,27],[468,23,19],[469,8,31],[470,14,26],[471,4,31],[472,28,12],[473,10,30],[474,17,23],[475,9,34],[476,25,20],[477,11,34],[478,17,27],[479,4,34],[480,36,5],[481,10,24],[482,21,24],[483,9,28],[484,24,19],[485,9,32],[486,16,26],[487,6,30],[488,30,12],[489,11,30],[490,17,24],[491,10,34],[492,26,20],[493,11,35],[494,18,27],[495,5,34],[496,32,9],[497,12,30],[498,18,24],[499,10,35],[500,27,20],[501,12,35],[502,19,27],[503,3,35],[504,30,13],[505,12,36],[506,20,27],[507,4,35],[508,25,19],[509,5,35],[510,12,37],[511,3,36]];
+
+const DEFAULT_SIZE_COLORS=[
+  "#f1f1f3",
+  "#fff2bf",
+  "#ffe4a8",
+  "#dff0b9",
+  "#ccebe2",
+  "#d2e4fb",
+  "#dfd5f6",
+  "#f2d5e6",
+  "#f6dccb",
+  "#dcdce7"
+];
+
+const stage=document.getElementById("stage");
+const stageWrap=document.getElementById("stageWrap");
+const linesLayer=document.getElementById("linesLayer");
+const selectionBox=document.getElementById("selectionBox");
+const statusEl=document.getElementById("status");
+const bornInput=document.getElementById("bornInput");
+const customPanel=document.getElementById("customPanel");
+
+const tiles=new Map();
+const selected=new Set();
+const activeLines=new Set();
+const manualColors=new Map();
+
+const OUTCOME_NAMES=["dead","still","oscillating","moving","growing","undecided","all_alive"];
+const OUTCOME_LABELS=["Dead","Still","Oscillating","Moving","Likely growing","Undecided","All alive"];
+const DEFAULT_OUTCOME_COLORS=["#ff0000","#008000","#ffff00","#0000ff","#aab4b3","#808080","#00ff00"];
+let outcomeColors=[...DEFAULT_OUTCOME_COLORS];
+const OLD_V13_SIZE_COLORS=[
+  "#ffffff","#fffdf0","#fffbea","#f8fdf1","#f1fbf8",
+  "#f3f8ff","#f8f4ff","#fff4fa","#fff7f1","#f7f7fa"
+];
+const OLD_V13_OUTCOME_COLORS=[
+  "#ff0000","#008000","#ffff00","#0000ff","#00dfe8","#808080","#00ff00"
+];
+function samePalette(a,b){
+  return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((x,i)=>x===b[i]);
+}
+const CONWAY_BORN_MASK=1<<3;
+const CONWAY_MIN_S=2;
+const CONWAY_MAX_S=3;
+let maxGenerations=50;
+const RESULT_STRIDE=11; // 7 outcome counts + generation sum + min + max + complemented/inverse count
+const resultCache=new Map(); // born mask -> Uint32Array(81*RESULT_STRIDE)
+let resultGeneration=0;
+let calcWorkers=[];
+let calcQueue=[];
+let calcBusy=false;
+let calcAllRequested=false;
+let calcDone=0;
+let calcTotal=0;
+let openUniverseMask=null;
+let selectedSurvivalCell=[CONWAY_MIN_S,CONWAY_MAX_S];
+
+let labMask=null;
+let labMinS=0;
+let labMaxS=0;
+let labSourcePatternId=null;
+let labHistory=[];
+let labCurrent=0;
+let labEditedGenerations=new Set();
+let labPlaying=false;
+let labTimer=null;
+let labDrawing=false;
+let labDrawValue=1;
+let labNeedsFutureRebuild=false;
+let labConclusion=null;
+let labGrowthCandidate=null;
+function isTerminalLabOutcome(outcome){return [0,1,2,3,6].includes(outcome)}
+function labCanContinueForever(){return !labConclusion || !isTerminalLabOutcome(labConclusion.outcome)}
+let labDecisionGens=[];
+
+let sizeColors=[...DEFAULT_SIZE_COLORS];
+let mode="view";
+let zoom=1;
+let customizeOpen=false;
+let paintActive=false;
+let lineDrawing=false;
+let lineDrawState=true;
+
+/* ---------- Born helpers ---------- */
+function popcount(x){
+  let c=0;
+  while(x){x&=x-1;c++}
+  return c;
+}
+function maskToValues(mask){
+  const out=[];
+  for(let i=0;i<9;i++) if(mask&(1<<i)) out.push(i);
+  return out;
+}
+function maskToLabel(mask){
+  const a=maskToValues(mask);
+  return a.length?a.join(""):"∅";
+}
+function valuesToMask(vals){
+  let m=0;
+  for(const v of vals)m|=(1<<v);
+  return m;
+}
+function parseSearch(text){
+  text=text.trim();
+  if(!text)return null;
+  if(text==="∅"||text==="{}")return 0;
+  const chars=text.match(/[0-8]/g);
+  if(!chars)return undefined;
+  return valuesToMask([...new Set(chars.map(Number))]);
+}
+function isNoSurvival(minS,maxS){return minS>maxS}
+function canonicalSurvival(minS,maxS){
+  return isNoSurvival(minS,maxS)?[1,0]:[minS,maxS];
+}
+function survivalCode(minS,maxS){
+  if(isNoSurvival(minS,maxS))return "∅";
+  if(minS===maxS)return String(minS);
+  return `${minS}${maxS}`;
+}
+function outcomeLabelWithInverse(outcomeIndex,inverse=false){
+  return OUTCOME_LABELS[outcomeIndex]+(inverse?"⁻¹":"");
+}
+function inverseMeaning(){
+  return "⁻¹ means the infinite background is alive and the finite pattern consists of dead exceptions.";
+}
+
+
+/* ---------- Tile colors ---------- */
+function applyTileBaseColor(mask){
+  const tile=tiles.get(mask);
+  if(!tile)return;
+  tile.style.background=manualColors.get(mask) || sizeColors[popcount(mask)] || "#fff";
+}
+function applyAllTileBaseColors(){
+  for(const mask of tiles.keys())applyTileBaseColor(mask);
+}
+function buildSizePalette(){
+  const box=document.getElementById("sizePalette");
+  box.innerHTML="";
+  for(let n=0;n<=9;n++){
+    const item=document.createElement("label");
+    item.className="paletteItem";
+    const wording=n===0?"empty":n===1?"1 number":`${n} numbers`;
+    item.innerHTML=`<span>${wording}</span>`;
+    const picker=document.createElement("input");
+    picker.type="color";
+    picker.value=sizeColors[n];
+    picker.dataset.size=n;
+    picker.addEventListener("input",()=>{
+      sizeColors[n]=picker.value;
+      applyAllTileBaseColors();
+    });
+    item.appendChild(picker);
+    box.appendChild(item);
+  }
+}
+
+function hexToRgb(hex){
+  const s=String(hex||"").replace("#","");
+  if(!/^[0-9a-fA-F]{6}$/.test(s))return [128,128,128];
+  return [parseInt(s.slice(0,2),16),parseInt(s.slice(2,4),16),parseInt(s.slice(4,6),16)];
+}
+function buildOutcomePalette(){
+  const box=document.getElementById("outcomePalette");
+  if(!box)return;
+  box.innerHTML="";
+  for(let i=0;i<OUTCOME_LABELS.length;i++){
+    const item=document.createElement("label");
+    item.className="paletteItem";
+    const name=document.createElement("span");
+    name.textContent=OUTCOME_LABELS[i];
+    const picker=document.createElement("input");
+    picker.type="color";
+    picker.value=outcomeColors[i];
+    picker.addEventListener("input",()=>{
+      outcomeColors[i]=picker.value;
+      drawAllTileOutcomes();
+      if(openUniverseMask!==null){renderOutcomeLegend();renderUniverseInfo(openUniverseMask)}
+    });
+    item.append(name,picker);
+    box.appendChild(item);
+  }
+}
+
+/* ---------- Build table ---------- */
+function setTileGridPosition(tile,col,row){
+  tile.dataset.col=col;
+  tile.dataset.row=row;
+  tile.style.left=(OFFSET+col*PITCH)+"px";
+  tile.style.top=(OFFSET+row*PITCH)+"px";
+}
+function buildTiles(){
+  for(const [mask,col,row] of INITIAL_POSITIONS){
+    const t=document.createElement("div");
+    t.className="tile"+(mask===CONWAY_BORN_MASK?" conway-universe":"");
+    t.dataset.mask=mask;
+
+    const canvas=document.createElement("canvas");
+    canvas.className="outcomeCanvas";
+    canvas.width=90;
+    canvas.height=90;
+    canvas.setAttribute("aria-hidden","true");
+
+    const label=document.createElement("div");
+    label.className="tileLabel";
+    label.textContent=maskToLabel(mask);
+
+    t.append(canvas,label);
+    if(mask===CONWAY_BORN_MASK){
+      const badge=document.createElement("span");
+      badge.className="conwayBadge";
+      badge.textContent="C";
+      badge.title="Contains Conway's original rule B3/S23";
+      t.appendChild(badge);
+    }
+
+    t.title=`Born ${maskToLabel(mask)} · click for universe information`;
+    setTileGridPosition(t,col,row);
+    enableTileEvents(t);
+    stage.appendChild(t);
+    tiles.set(mask,t);
+    drawTileOutcome(mask);
+  }
+  applyAllTileBaseColors();
+  resizeStage();
+}
+function resizeStage(){
+  let maxC=0,maxR=0;
+  for(const t of tiles.values()){
+    maxC=Math.max(maxC,+t.dataset.col||0);
+    maxR=Math.max(maxR,+t.dataset.row||0);
+  }
+  stage.style.width=Math.max(3400,(maxC+4)*PITCH)+"px";
+  stage.style.height=Math.max(3100,(maxR+4)*PITCH)+"px";
+  renderLines();
+  applyZoom();
+}
+
+/* ---------- Search ---------- */
+function runSearch(){
+  const q=parseSearch(bornInput.value);
+  for(const [mask,t] of tiles){
+    t.classList.remove("search-match","search-exact","search-hidden");
+    if(q===null)continue;
+    if(q===undefined){t.classList.add("search-hidden");continue}
+    const contains=(mask&q)===q;
+    if(mask===q)t.classList.add("search-exact");
+    else if(contains)t.classList.add("search-match");
+    else t.classList.add("search-hidden");
+  }
+  if(q===null){
+    statusEl.textContent="Ready";
+    return;
+  }
+  if(q===undefined){
+    statusEl.textContent="Search with digits 0–8";
+    return;
+  }
+  const matches=[...tiles.keys()].filter(m=>(m&q)===q).length;
+  statusEl.textContent=`${matches} universes contain ${maskToLabel(q)} · exact rule in red`;
+}
+bornInput.addEventListener("input",runSearch);
+document.getElementById("clearSearchBtn").onclick=()=>{
+  bornInput.value="";
+  runSearch();
+};
+
+/* ---------- Selection / move / paint ---------- */
+function refreshSelection(){
+  for(const [m,t] of tiles)t.classList.toggle("selected",selected.has(m));
+}
+function clearSelection(){selected.clear();refreshSelection()}
+function selectOnly(mask){selected.clear();selected.add(mask);refreshSelection()}
+
+function paintTile(mask,erase=false){
+  if(erase)manualColors.delete(mask);
+  else manualColors.set(mask,document.getElementById("paintColor").value);
+  applyTileBaseColor(mask);
+}
+
+function enableTileEvents(tile){
+  let pid=null,sx=0,sy=0,moved=false,selectedBefore=false,groupStart=new Map();
+
+  tile.addEventListener("click",e=>{
+    if(mode!=="view")return;
+    openUniverseInfo(+tile.dataset.mask);
+  });
+
+  tile.addEventListener("contextmenu",e=>{
+    if(mode==="color"){
+      e.preventDefault();
+      paintTile(+tile.dataset.mask,true);
+    }
+  });
+
+  tile.addEventListener("pointerdown",e=>{
+    if(e.button!==0)return;
+    const mask=+tile.dataset.mask;
+
+    if(mode==="color"){
+      e.preventDefault();
+      paintActive=true;
+      paintTile(mask,false);
+      return;
+    }
+
+    if(mode!=="move")return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    selectedBefore=selected.has(mask);
+    const additive=e.shiftKey||e.ctrlKey||e.metaKey;
+    if(additive){
+      if(!selected.has(mask))selected.add(mask);
+    }else if(!selected.has(mask)){
+      selectOnly(mask);
+    }
+    refreshSelection();
+
+    pid=e.pointerId;
+    tile.setPointerCapture(pid);
+    sx=e.clientX; sy=e.clientY;
+    moved=false;
+    groupStart.clear();
+    for(const m of selected){
+      const t=tiles.get(m);
+      groupStart.set(m,{
+        left:parseFloat(t.style.left)||0,
+        top:parseFloat(t.style.top)||0
+      });
+      t.classList.add("dragging");
+    }
+  });
+
+  tile.addEventListener("pointerenter",e=>{
+    if(mode==="color"&&paintActive&&e.buttons===1)paintTile(+tile.dataset.mask,false);
+  });
+
+  tile.addEventListener("pointermove",e=>{
+    if(mode!=="move"||pid!==e.pointerId)return;
+    const dx=(e.clientX-sx)/zoom;
+    const dy=(e.clientY-sy)/zoom;
+    if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
+    for(const [m,p] of groupStart){
+      const t=tiles.get(m);
+      t.style.left=(p.left+dx)+"px";
+      t.style.top=(p.top+dy)+"px";
+    }
+  });
+
+  const finish=e=>{
+    if(mode!=="move"||pid!==e.pointerId)return;
+    pid=null;
+    const mask=+tile.dataset.mask;
+    const additive=e.shiftKey||e.ctrlKey||e.metaKey;
+
+    if(!moved&&additive&&selectedBefore){
+      selected.delete(mask);
+      refreshSelection();
+    }else{
+      const rawLeft=parseFloat(tile.style.left)||0;
+      const rawTop=parseFloat(tile.style.top)||0;
+      const anchorCol=Math.max(0,Math.round((rawLeft-OFFSET)/PITCH));
+      const anchorRow=Math.max(0,Math.round((rawTop-OFFSET)/PITCH));
+      const snapDx=OFFSET+anchorCol*PITCH-rawLeft;
+      const snapDy=OFFSET+anchorRow*PITCH-rawTop;
+
+      for(const m of selected){
+        const t=tiles.get(m);
+        const left=(parseFloat(t.style.left)||0)+snapDx;
+        const top=(parseFloat(t.style.top)||0)+snapDy;
+        setTileGridPosition(
+          t,
+          Math.max(0,Math.round((left-OFFSET)/PITCH)),
+          Math.max(0,Math.round((top-OFFSET)/PITCH))
+        );
+      }
+      resizeStage();
+      statusEl.textContent=`Moved ${selected.size} cell${selected.size===1?"":"s"}`;
+    }
+    for(const t of tiles.values())t.classList.remove("dragging");
+  };
+
+  tile.addEventListener("pointerup",finish);
+  tile.addEventListener("pointercancel",finish);
+}
+
+window.addEventListener("pointerup",()=>{
+  paintActive=false;
+  lineDrawing=false;
+});
+
+/* selection rectangle */
+let boxPid=null,boxX=0,boxY=0;
+stage.addEventListener("pointerdown",e=>{
+  if(mode!=="move"||e.target!==stage||e.button!==0)return;
+  const additive=e.shiftKey||e.ctrlKey||e.metaKey;
+  if(!additive)clearSelection();
+
+  const rect=stage.getBoundingClientRect();
+  boxPid=e.pointerId;
+  stage.setPointerCapture(boxPid);
+  boxX=(e.clientX-rect.left)/zoom;
+  boxY=(e.clientY-rect.top)/zoom;
+  selectionBox.style.display="block";
+  selectionBox.style.left=boxX+"px";
+  selectionBox.style.top=boxY+"px";
+  selectionBox.style.width="0";
+  selectionBox.style.height="0";
+});
+stage.addEventListener("pointermove",e=>{
+  if(boxPid!==e.pointerId)return;
+  const rect=stage.getBoundingClientRect();
+  const x=(e.clientX-rect.left)/zoom;
+  const y=(e.clientY-rect.top)/zoom;
+  const left=Math.min(boxX,x),top=Math.min(boxY,y);
+  selectionBox.style.left=left+"px";
+  selectionBox.style.top=top+"px";
+  selectionBox.style.width=Math.abs(x-boxX)+"px";
+  selectionBox.style.height=Math.abs(y-boxY)+"px";
+});
+stage.addEventListener("pointerup",e=>{
+  if(boxPid!==e.pointerId)return;
+  boxPid=null;
+  const b={
+    l:parseFloat(selectionBox.style.left),
+    t:parseFloat(selectionBox.style.top),
+    r:parseFloat(selectionBox.style.left)+parseFloat(selectionBox.style.width),
+    b:parseFloat(selectionBox.style.top)+parseFloat(selectionBox.style.height)
+  };
+  for(const [m,t] of tiles){
+    const l=parseFloat(t.style.left)||0;
+    const tp=parseFloat(t.style.top)||0;
+    if(!(l+TILE<b.l||l>b.r||tp+TILE<b.t||tp>b.b))selected.add(m);
+  }
+  selectionBox.style.display="none";
+  refreshSelection();
+  statusEl.textContent=`${selected.size} selected`;
+});
+
+/* ---------- Edit modes / Customize ---------- */
+function setMode(next){
+  mode=next;
+  for(const id of ["move","color","line"]){
+    document.getElementById(id+"ModeBtn").classList.toggle("active",id===next);
+  }
+  linesLayer.classList.toggle("editing",next==="line");
+  for(const t of tiles.values()){
+    t.style.cursor=next==="move"?"grab":next==="color"?"crosshair":"pointer";
+  }
+}
+function closeCustomize(){
+  customizeOpen=false;
+  customPanel.classList.remove("open");
+  document.getElementById("customizeBtn").textContent="Customize ▾";
+  clearSelection();
+  setMode("view");
+}
+function openCustomize(){
+  customizeOpen=true;
+  customPanel.classList.add("open");
+  document.getElementById("customizeBtn").textContent="Customize ▴";
+  setMode("move");
+  statusEl.textContent="Customize mode";
+}
+document.getElementById("customizeBtn").onclick=()=>{
+  customizeOpen?closeCustomize():openCustomize();
+};
+document.getElementById("moveModeBtn").onclick=()=>setMode("move");
+document.getElementById("colorModeBtn").onclick=()=>setMode("color");
+document.getElementById("lineModeBtn").onclick=()=>setMode("line");
+
+document.getElementById("eraseColorBtn").onclick=()=>{
+  if(!selected.size){
+    statusEl.textContent="Select cells in Move mode, then erase their manual color";
+    return;
+  }
+  for(const m of selected)paintTile(m,true);
+  statusEl.textContent=`Cleared manual color from ${selected.size} selected`;
+};
+document.getElementById("clearManualColorsBtn").onclick=()=>{
+  manualColors.clear();
+  applyAllTileBaseColors();
+  statusEl.textContent="All manual cell colors cleared";
+};
+document.getElementById("resetPaletteBtn").onclick=()=>{
+  sizeColors=[...DEFAULT_SIZE_COLORS];
+  buildSizePalette();
+  buildOutcomePalette();
+  applyAllTileBaseColors();
+  statusEl.textContent="Light size palette reset";
+};
+document.getElementById("resetOutcomePaletteBtn").onclick=()=>{
+  outcomeColors=[...DEFAULT_OUTCOME_COLORS];
+  buildOutcomePalette();
+  drawAllTileOutcomes();
+  if(openUniverseMask!==null){renderOutcomeLegend();renderUniverseInfo(openUniverseMask)}
+  statusEl.textContent="Outcome colors reset";
+};
+document.getElementById("maxGenerationsInput").addEventListener("change",e=>{
+  const value=Math.max(20,Math.min(2000,Math.round(+e.target.value||200)));
+  e.target.value=value;
+  if(value===maxGenerations)return;
+  maxGenerations=value;
+  invalidateResults(`Maximum generations changed to ${maxGenerations}`);
+  if(openUniverseMask!==null)buildLabTrajectory(true);
+});
+
+/* ---------- Divider editor ---------- */
+function lineKey(o,a,b){return `${o}:${a}:${b}`}
+function updateLineEl(ln,key,on){
+  ln.classList.toggle("visible",on);
+  ln.classList.toggle("guide",!on);
+}
+function makeSvgLine(x1,y1,x2,y2,key){
+  const ns="http://www.w3.org/2000/svg";
+  const ln=document.createElementNS(ns,"line");
+  ln.setAttribute("x1",x1);ln.setAttribute("y1",y1);
+  ln.setAttribute("x2",x2);ln.setAttribute("y2",y2);
+  ln.dataset.key=key;
+  ln.classList.add("gridEdge");
+  updateLineEl(ln,key,activeLines.has(key));
+
+  ln.addEventListener("pointerdown",e=>{
+    if(mode!=="line")return;
+    e.preventDefault();
+    lineDrawing=true;
+    lineDrawState=!activeLines.has(key);
+    lineDrawState?activeLines.add(key):activeLines.delete(key);
+    updateLineEl(ln,key,lineDrawState);
+  });
+  ln.addEventListener("pointerenter",e=>{
+    if(mode!=="line"||!lineDrawing||e.buttons!==1)return;
+    lineDrawState?activeLines.add(key):activeLines.delete(key);
+    updateLineEl(ln,key,lineDrawState);
+  });
+  ln.addEventListener("contextmenu",e=>{
+    if(mode!=="line")return;
+    e.preventDefault();
+    activeLines.delete(key);
+    updateLineEl(ln,key,false);
+  });
+  return ln;
+}
+function renderLines(){
+  if(!stage.style.width)return;
+  const w=parseFloat(stage.style.width),h=parseFloat(stage.style.height);
+  linesLayer.setAttribute("viewBox",`0 0 ${w} ${h}`);
+  linesLayer.setAttribute("width",w);
+  linesLayer.setAttribute("height",h);
+  linesLayer.innerHTML="";
+  const cols=Math.ceil(w/PITCH),rows=Math.ceil(h/PITCH);
+
+  for(let c=0;c<=cols;c++){
+    for(let r=0;r<rows;r++){
+      const k=lineKey("V",c,r);
+      linesLayer.appendChild(makeSvgLine(c*PITCH,r*PITCH,c*PITCH,(r+1)*PITCH,k));
+    }
+  }
+  for(let r=0;r<=rows;r++){
+    for(let c=0;c<cols;c++){
+      const k=lineKey("H",c,r);
+      linesLayer.appendChild(makeSvgLine(c*PITCH,r*PITCH,(c+1)*PITCH,r*PITCH,k));
+    }
+  }
+}
+
+
+/* ---------- Multiverse simulation ---------- */
+function outcomeColorFromCounts(counts,cellIndex){
+  const off=cellIndex*RESULT_STRIDE;
+  let total=0,r=0,g=0,b=0;
+  for(let k=0;k<7;k++)total+=counts[off+k]||0;
+  if(!total)return "rgba(255,255,255,.18)";
+  for(let k=0;k<7;k++){
+    const n=counts[off+k]||0;
+    const rgb=hexToRgb(outcomeColors[k]);
+    r+=rgb[0]*n;
+    g+=rgb[1]*n;
+    b+=rgb[2]*n;
+  }
+  return `rgb(${Math.round(r/total)},${Math.round(g/total)},${Math.round(b/total)})`;
+}
+function dominantOutcome(counts,cellIndex){
+  const off=cellIndex*RESULT_STRIDE;
+  let best=0,bestN=-1,total=0;
+  for(let k=0;k<7;k++){
+    const n=counts[off+k]||0;
+    total+=n;
+    if(n>bestN){bestN=n;best=k}
+  }
+  return {index:best,count:bestN,total};
+}
+function drawTileOutcome(mask){
+  const tile=tiles.get(mask);
+  if(!tile)return;
+  const canvas=tile.querySelector(".outcomeCanvas");
+  if(!canvas)return;
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,90,90);
+  const result=resultCache.get(mask);
+
+  function drawCell(minS,maxS,color){
+    ctx.fillStyle=color;
+    ctx.fillRect(maxS*10,minS*10,10,10);
+    ctx.strokeStyle="rgba(255,255,255,.48)";
+    ctx.lineWidth=.6;
+    ctx.strokeRect(maxS*10+.3,minS*10+.3,9.4,9.4);
+  }
+
+  if(!result){
+    // Only the valid upper triangle is real.
+    for(let minS=0;minS<9;minS++){
+      for(let maxS=minS;maxS<9;maxS++){
+        drawCell(minS,maxS,"rgba(255,255,255,.20)");
+      }
+    }
+    // Canonical S∅ lives inside the unused lower triangle: min=8,max=0.
+    ctx.fillStyle="rgba(255,255,255,.20)";
+    ctx.fillRect(0,80,10,10);
+    ctx.strokeStyle="rgba(80,80,90,.18)";
+    ctx.strokeRect(.3,80.3,9.4,9.4);
+
+    if(mask===CONWAY_BORN_MASK){
+      ctx.strokeStyle="#6b3fa0";ctx.lineWidth=3;
+      ctx.strokeRect(CONWAY_MAX_S*10+1,CONWAY_MIN_S*10+1,8,8);
+    }
+    tile.classList.remove("calculated");
+    return;
+  }
+
+  for(let minS=0;minS<9;minS++){
+    for(let maxS=minS;maxS<9;maxS++){
+      const i=minS*9+maxS;
+      drawCell(minS,maxS,outcomeColorFromCounts(result,i));
+    }
+  }
+
+  // All min > max rules are identical: no living cell survives.
+  const noSurvIdx=1*9+0;
+  ctx.fillStyle=outcomeColorFromCounts(result,noSurvIdx);
+  ctx.fillRect(0,80,10,10);
+  ctx.strokeStyle="rgba(255,255,255,.48)";
+  ctx.strokeRect(.3,80.3,9.4,9.4);
+
+  if(mask===CONWAY_BORN_MASK){
+    ctx.strokeStyle="#6b3fa0";ctx.lineWidth=3;
+    ctx.strokeRect(CONWAY_MAX_S*10+1,CONWAY_MIN_S*10+1,8,8);
+  }
+  tile.classList.add("calculated");
+  tile.classList.remove("calculating");
+}
+function drawAllTileOutcomes(){for(const m of tiles.keys())drawTileOutcome(m)}
+
+function analysisPatternsPayload(){
+  let ids=[...analysis.patternIds];
+  if(analysis.mode==="single")ids=ids.slice(0,1);
+  const out=[];
+  for(const id of ids){
+    const p=getPattern(id);
+    if(p)out.push(patternStatePayload(p));
+  }
+  return out;
+}
+function activeAnalysisLabel(){
+  const ps=analysisPatternsPayload();
+  if(analysis.mode==="average")return `average of ${ps.length} pattern${ps.length===1?"":"s"}`;
+  return ps[0]?.name || "no pattern";
+}
+function invalidateResults(reason="Starting pattern changed"){
+  resultGeneration++;
+  stopLabPlayback();
+  if(analysis.patternIds[0])labSourcePatternId=analysis.patternIds[0];
+  resultCache.clear();
+  stopCalculations(false);
+  drawAllTileOutcomes();
+  if(openUniverseMask!==null)renderUniverseInfo(openUniverseMask);
+  if(reason)statusEl.textContent=reason+" · recalculate outcomes";
+}
+
+function workerSource(){
+  return `
+const STEPS=${maxGenerations};
+const OFF=32768;
+const DIFF_LIMIT=12000;
+const RESULT_STRIDE=${11};
+let PATTERNS=[];
+
+function pack(r,c){return ((((r+OFF)&65535)<<16)|((c+OFF)&65535))>>>0}
+function rowOf(k){return (k>>>16)-OFF}
+function colOf(k){return (k&65535)-OFF}
+
+function initialState(p){
+  const bg=+p.background===1?1:0;
+  const diff=new Set();
+  for(const q of p.exceptions||[])diff.add(pack(Math.round(q[0]),Math.round(q[1])));
+  return {bg,diff};
+}
+function boundsDiff(state){
+  if(!state.diff.size)return {minR:0,maxR:0,minC:0,maxC:0,h:1,w:1,area:1};
+  let minR=Infinity,maxR=-Infinity,minC=Infinity,maxC=-Infinity;
+  for(const k of state.diff){
+    const r=rowOf(k),c=colOf(k);
+    if(r<minR)minR=r;if(r>maxR)maxR=r;if(c<minC)minC=c;if(c>maxC)maxC=c;
+  }
+  const h=maxR-minR+1,w=maxC-minC+1;
+  return {minR,maxR,minC,maxC,h,w,area:h*w};
+}
+function farNextBackground(bg,minS,maxS,bornMask){
+  if(bg===0)return (bornMask&1)?1:0;
+  return (8>=minS&&8<=maxS)?1:0;
+}
+function cellValue(state,key){return state.bg ^ (state.diff.has(key)?1:0)}
+function neighborCount(state,r,c){
+  let n=state.bg?8:0;
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)if(dr||dc){
+    if(state.diff.has(pack(r+dr,c+dc)))n += state.bg ? -1 : 1;
+  }
+  return n;
+}
+function nextState(state,minS,maxS,bornMask){
+  const nextBg=farNextBackground(state.bg,minS,maxS,bornMask);
+  if(!state.diff.size)return {bg:nextBg,diff:new Set(),overflow:false};
+
+  const candidates=new Set();
+  for(const k of state.diff){
+    const r=rowOf(k),c=colOf(k);
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      candidates.add(pack(r+dr,c+dc));
+    }
+  }
+
+  const nextDiff=new Set();
+  for(const k of candidates){
+    const r=rowOf(k),c=colOf(k),now=cellValue(state,k),n=neighborCount(state,r,c);
+    const nextVal=now
+      ? ((n>=minS&&n<=maxS)?1:0)
+      : (((bornMask&(1<<n))!==0)?1:0);
+    if(nextVal!==nextBg)nextDiff.add(k);
+    if(nextDiff.size>DIFF_LIMIT)return {bg:nextBg,diff:nextDiff,overflow:true};
+  }
+  return {bg:nextBg,diff:nextDiff,overflow:false};
+}
+
+function normalizedShape(state){
+  if(!state.diff.size||state.diff.size>DIFF_LIMIT)return null;
+  const b=boundsDiff(state),arr=[];
+  for(const k of state.diff){
+    const rr=rowOf(k)-b.minR,cc=colOf(k)-b.minC;
+    arr.push((((rr&65535)<<16)|(cc&65535))>>>0);
+  }
+  arr.sort((a,b)=>a-b);
+  // Background is part of the state identity.
+  return {
+    key:state.bg+":"+b.h+"x"+b.w+":"+arr.join("."),
+    bg:state.bg,minR:b.minR,minC:b.minC,b
+  };
+}
+function exactHomogeneousRepeat(historyBg,bg,t){
+  const prev=historyBg.get(bg);
+  if(prev===undefined){historyBg.set(bg,t);return null}
+  return prev;
+}
+function translatedSubset(past,current){
+  if(!past||!current||past.bg!==current.bg)return false;
+  if(past.diff.size<3||current.diff.size<=past.diff.size)return false;
+  if(past.diff.size>3500)return false;
+
+  const pb=boundsDiff(past),cb=boundsDiff(current);
+  if(cb.area<=pb.area||current.diff.size<past.diff.size+2)return false;
+
+  const offsets=[
+    [cb.minR-pb.minR,cb.minC-pb.minC],
+    [cb.maxR-pb.maxR,cb.maxC-pb.maxC],
+    [cb.minR-pb.minR,cb.maxC-pb.maxC],
+    [cb.maxR-pb.maxR,cb.minC-pb.minC],
+    [Math.round((cb.minR+cb.maxR-pb.minR-pb.maxR)/2),
+     Math.round((cb.minC+cb.maxC-pb.minC-pb.maxC)/2)]
+  ];
+
+  // Shape + all immediate neighbors must match after translation.
+  const contextKeys=new Set();
+  for(const k of past.diff){
+    const r=rowOf(k),c=colOf(k);
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        contextKeys.add(pack(r+dr,c+dc));
+      }
+    }
+  }
+
+  for(const [dr,dc] of offsets){
+    let ok=true;
+
+    for(const k of past.diff){
+      if(!current.diff.has(pack(rowOf(k)+dr,colOf(k)+dc))){
+        ok=false;
+        break;
+      }
+    }
+    if(!ok)continue;
+
+    for(const k of contextKeys){
+      const oldIsException=past.diff.has(k);
+      const newIsException=current.diff.has(
+        pack(rowOf(k)+dr,colOf(k)+dc)
+      );
+      if(oldIsException!==newIsException){
+        ok=false;
+        break;
+      }
+    }
+
+    if(ok)return true;
+  }
+  return false;
+}
+
+
+function backgroundPhasePeriod(records,current,t){
+  // The uniform infinite background is a deterministic 2-state system,
+  // so after any transient its period can only be 1 or 2.
+  const getState=time=>{
+    if(time===t)return current;
+    for(let i=records.length-1;i>=0;i--)if(records[i].t===time)return records[i].state;
+    return null;
+  };
+  if(t>=3){
+    const a=getState(t),b=getState(t-1),c=getState(t-2),d=getState(t-3);
+    if(a&&b&&c&&d && a.bg===c.bg && b.bg===d.bg && a.bg!==b.bg)return 2;
+  }
+  if(t>=1){
+    const a=getState(t),b=getState(t-1);
+    if(a&&b&&a.bg===b.bg)return 1;
+  }
+  return null;
+}
+function symmetricFrontGrowthEvidence(records,current,t){
+  if(!current||current.diff.size<4)return null;
+  const phase=backgroundPhasePeriod(records,current,t);
+  if(!phase)return null;
+
+  const lookup=new Map(records.map(x=>[x.t,x.state]));
+  lookup.set(t,current);
+
+  // Four same-phase samples = three consecutive expansion intervals.
+  const times=[t-3*phase,t-2*phase,t-phase,t];
+  if(times[0]<0)return null;
+  const states=times.map(x=>lookup.get(x));
+  if(states.some(x=>!x))return null;
+  if(states.some(x=>x.bg!==current.bg || !x.diff.size))return null;
+
+  const bs=states.map(boundsDiff);
+
+  // Same center: symmetric snowflake/front rather than simple translation.
+  const centerR=bs.map(b=>b.minR+b.maxR);
+  const centerC=bs.map(b=>b.minC+b.maxC);
+  if(!centerR.every(x=>x===centerR[0]) || !centerC.every(x=>x===centerC[0]))return null;
+
+  const steps=[];
+  for(let i=1;i<bs.length;i++){
+    steps.push({
+      top:bs[i-1].minR-bs[i].minR,
+      bottom:bs[i].maxR-bs[i-1].maxR,
+      left:bs[i-1].minC-bs[i].minC,
+      right:bs[i].maxC-bs[i-1].maxC
+    });
+  }
+
+  // Every side must expand, and by the same amount on each same-phase interval.
+  for(const side of ["top","bottom","left","right"]){
+    const vals=steps.map(s=>s[side]);
+    if(vals.some(v=>v<=0))return null;
+    if(!vals.every(v=>v===vals[0]))return null;
+  }
+
+  // For this detector specifically, require four-way symmetric speed.
+  const d=steps[0].top;
+  if(!steps.every(s=>s.top===d&&s.bottom===d&&s.left===d&&s.right===d))return null;
+
+  return {
+    past:times[0],
+    recent:times[2],
+    current:t,
+    evidence:"symmetric-front-growth",
+    phase,
+    sideDelta:d
+  };
+}
+
+function structuralGrowthEvidence(recent,current,t){
+  if(!current||current.diff.size<4)return null;
+  const matches=[];
+  for(let i=recent.length-1;i>=0;i--){
+    const rec=recent[i];
+    if(t-rec.t<2||rec.state.bg!==current.bg)continue;
+    if(translatedSubset(rec.state,current)){
+      matches.push(rec.t);
+      if(matches.length>=2)return {past:matches[1],recent:matches[0],current:t};
+    }
+  }
+  return null;
+}
+function makeResult(outcome,gen,state){
+  return {
+    outcome,gen,
+    inverse:!!(state && state.bg===1 && state.diff.size>0)
+  };
+}
+
+function simulate(pattern,minS,maxS,bornMask){
+  let state=initialState(pattern);
+  const recent=[];
+  const shapeMap=new Map();
+  const homogeneousSeen=new Map();
+
+  for(let t=0;t<=STEPS;t++){
+    if(state.diff.size===0){
+      // Truly homogeneous infinite states.
+      if(state.bg===0 && !(bornMask&1))return makeResult(0,t,state);
+      if(state.bg===1 && 8>=minS&&8<=maxS)return makeResult(6,t,state);
+
+      // Homogeneous global oscillation such as all-dead <-> all-alive.
+      const prev=exactHomogeneousRepeat(homogeneousSeen,state.bg,t);
+      if(prev!==null&&t>prev)return makeResult(2,t,state);
+    }else{
+      // Exact/translated recurrence works for BOTH:
+      // bg=0 => finite live object in dead infinity
+      // bg=1 => finite dead object in live infinity (inverse/complemented)
+      const info=normalizedShape(state);
+      if(info){
+        const old=shapeMap.get(info.key);
+        if(old){
+          for(const rec of old){
+            const period=t-rec.t;
+            if(period<=0)continue;
+            const moved=info.minR!==rec.minR||info.minC!==rec.minC;
+            if(period===1&&!moved)return makeResult(1,t,state);
+            if(!moved)return makeResult(2,t,state);
+            return makeResult(3,t,state);
+          }
+          old.push({t,minR:info.minR,minC:info.minC});
+        }else{
+          shapeMap.set(info.key,[{t,minR:info.minR,minC:info.minC}]);
+        }
+      }
+
+      const growth=structuralGrowthEvidence(recent,state,t);
+      if(growth)return makeResult(4,t,state);
+
+      const frontGrowth=symmetricFrontGrowthEvidence(recent,state,t);
+      if(frontGrowth)return makeResult(4,t,state);
+
+      recent.push({t,state});
+      if(recent.length>81)recent.shift();
+    }
+
+    if(t===STEPS)break;
+    state=nextState(state,minS,maxS,bornMask);
+    if(state.overflow)return makeResult(5,t+1,state);
+  }
+  return makeResult(5,STEPS,state);
+}
+
+function addResult(out,cellIndex,res){
+  const off=cellIndex*RESULT_STRIDE;
+  let total=0;
+  for(let k=0;k<7;k++)total+=out[off+k];
+
+  out[off+res.outcome]++;
+  out[off+7]+=res.gen;
+
+  if(total===0){
+    out[off+8]=res.gen;
+    out[off+9]=res.gen;
+  }else{
+    if(res.gen<out[off+8])out[off+8]=res.gen;
+    if(res.gen>out[off+9])out[off+9]=res.gen;
+  }
+  if(res.inverse)out[off+10]++;
+}
+function calcMask(mask){
+  const out=new Uint32Array(81*RESULT_STRIDE);
+  for(const p of PATTERNS){
+    // Canonical S∅ / no-survival rule.
+    const noSurv=simulate(p,1,0,mask);
+    for(let minS=0;minS<9;minS++){
+      for(let maxS=0;maxS<9;maxS++){
+        const idx=minS*9+maxS;
+        addResult(out,idx,minS>maxS?noSurv:simulate(p,minS,maxS,mask));
+      }
+    }
+  }
+  return out;
+}
+onmessage=e=>{
+  const d=e.data;
+  if(d.type==='init'){PATTERNS=d.patterns||[];return}
+  if(d.type==='calc'){
+    const arr=calcMask(d.mask);
+    postMessage({type:'result',mask:d.mask,generation:d.generation,buffer:arr.buffer},[arr.buffer]);
+  }
+};`;
+}
+function destroyWorkers(){
+  for(const w of calcWorkers)try{w.worker.terminate()}catch(e){}
+  calcWorkers=[];
+}
+function ensureWorkers(){
+  if(calcWorkers.length)return;
+  const patterns=analysisPatternsPayload();
+  if(!patterns.length)return;
+  const blob=new Blob([workerSource()],{type:"text/javascript"});
+  const url=URL.createObjectURL(blob);
+  const count=Math.max(1,Math.min(4,navigator.hardwareConcurrency||2));
+  for(let i=0;i<count;i++){
+    const worker=new Worker(url);
+    const slot={worker,busy:false,mask:null};
+    worker.onmessage=e=>handleWorkerResult(slot,e.data);
+    worker.onerror=e=>{
+      slot.busy=false;
+      console.error(e);
+      statusEl.textContent="Simulation worker error";
+      dispatchCalcJobs();
+    };
+    worker.postMessage({type:"init",patterns});
+    calcWorkers.push(slot);
+  }
+  URL.revokeObjectURL(url);
+}
+function handleWorkerResult(slot,d){
+  slot.busy=false;
+  slot.mask=null;
+  if(d.type!=="result"||d.generation!==resultGeneration){dispatchCalcJobs();return}
+  const counts=new Uint32Array(d.buffer);
+  resultCache.set(d.mask,counts);
+  drawTileOutcome(d.mask);
+  calcDone++;
+  updateCalcProgress();
+  if(openUniverseMask===d.mask)renderUniverseInfo(d.mask);
+  dispatchCalcJobs();
+}
+function dispatchCalcJobs(){
+  if(!calcBusy)return;
+  ensureWorkers();
+  for(const slot of calcWorkers){
+    if(slot.busy)continue;
+    const mask=calcQueue.shift();
+    if(mask===undefined)continue;
+    if(resultCache.has(mask)){calcDone++;updateCalcProgress();continue}
+    slot.busy=true;slot.mask=mask;
+    const tile=tiles.get(mask);if(tile)tile.classList.add("calculating");
+    slot.worker.postMessage({type:"calc",mask,generation:resultGeneration});
+  }
+  const anyBusy=calcWorkers.some(x=>x.busy);
+  if(!calcQueue.length&&!anyBusy){
+    calcBusy=false;
+    document.getElementById("cancelCalcBtn").style.display="none";
+    document.getElementById("calculateBtn").disabled=false;
+    document.getElementById("calcProgress").classList.remove("show");
+    statusEl.textContent=calcAllRequested?`Calculated ${resultCache.size} / 512 Born universes`:`Universe calculated`;
+    calcAllRequested=false;
+  }
+}
+function updateCalcProgress(){
+  const pct=calcTotal?Math.min(100,Math.round(calcDone/calcTotal*100)):0;
+  document.getElementById("calcBarFill").style.width=pct+"%";
+  document.getElementById("calcProgressText").textContent=`${calcDone} / ${calcTotal}`;
+}
+function startCalculation(masks,all=false){
+  const patterns=analysisPatternsPayload();
+  if(!patterns.length){statusEl.textContent="Choose at least one starting pattern";return}
+  if(calcBusy && !all){
+    // priority insert while an all-table calculation is already running
+    for(const m of masks)if(!resultCache.has(m)&&!calcQueue.includes(m))calcQueue.unshift(m);
+    dispatchCalcJobs();
+    return;
+  }
+  if(calcBusy)stopCalculations(false);
+  calcQueue=[...masks].filter(m=>!resultCache.has(m));
+  if(!calcQueue.length){statusEl.textContent="Those outcomes are already calculated";return}
+  calcAllRequested=all;
+  calcDone=0;calcTotal=calcQueue.length;calcBusy=true;
+  document.getElementById("calculateBtn").disabled=true;
+  document.getElementById("cancelCalcBtn").style.display="inline-block";
+  document.getElementById("calcProgress").classList.add("show");
+  updateCalcProgress();
+  statusEl.textContent=all?`Calculating multiverse · ${activeAnalysisLabel()}`:"Calculating universe…";
+  dispatchCalcJobs();
+}
+function stopCalculations(showStatus=true){
+  calcBusy=false;calcQueue=[];
+  destroyWorkers();
+  for(const t of tiles.values())t.classList.remove("calculating");
+  document.getElementById("cancelCalcBtn").style.display="none";
+  document.getElementById("calculateBtn").disabled=false;
+  document.getElementById("calcProgress").classList.remove("show");
+  if(showStatus)statusEl.textContent="Calculation cancelled";
+}
+document.getElementById("calculateBtn").onclick=()=>startCalculation([...tiles.keys()],true);
+document.getElementById("cancelCalcBtn").onclick=()=>stopCalculations(true);
+
+
+/* ---------- Rule laboratory: exact infinite background + finite exceptions ---------- */
+const COORD_OFF=32768;
+const LAB_DIFF_LIMIT=25000;
+let labView={originR:-16,originC:-16,span:32,auto:true};
+
+function packCoord(r,c){
+  return ((((r+COORD_OFF)&65535)<<16)|((c+COORD_OFF)&65535))>>>0;
+}
+function coordR(k){return (k>>>16)-COORD_OFF}
+function coordC(k){return (k&65535)-COORD_OFF}
+
+function stateFromPattern(p){
+  const bg=+p?.background===1?1:0;
+  const diff=new Set();
+  const coords=bg?patternExceptions(p):patternCoords(p);
+  for(const q of coords)diff.add(packCoord(Math.round(q[0]),Math.round(q[1])));
+  return {bg,diff,overflow:false};
+}
+function stateExceptionCoords(state){
+  const out=[];
+  for(const k of state?.diff||[])out.push([coordR(k),coordC(k)]);
+  return out;
+}
+function stateBounds(state){
+  if(!state?.diff?.size)return {minR:0,maxR:0,minC:0,maxC:0,h:1,w:1};
+  let minR=Infinity,maxR=-Infinity,minC=Infinity,maxC=-Infinity;
+  for(const k of state.diff){
+    const r=coordR(k),c=coordC(k);
+    if(r<minR)minR=r;if(r>maxR)maxR=r;
+    if(c<minC)minC=c;if(c>maxC)maxC=c;
+  }
+  return {minR,maxR,minC,maxC,h:maxR-minR+1,w:maxC-minC+1};
+}
+function stateCellValue(state,key){
+  return state.bg ^ (state.diff.has(key)?1:0);
+}
+function stateNeighborCount(state,r,c){
+  let n=state.bg?8:0;
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)if(dr||dc){
+    if(state.diff.has(packCoord(r+dr,c+dc)))n += state.bg ? -1 : 1;
+  }
+  return n;
+}
+function stepLabBoard(state,minS,maxS,bornMask){
+  const nextBg=state.bg===0
+    ? ((bornMask&1)?1:0)
+    : ((8>=minS&&8<=maxS)?1:0);
+
+  if(!state.diff.size)return {bg:nextBg,diff:new Set(),overflow:false};
+
+  const candidates=new Set();
+  for(const k of state.diff){
+    const r=coordR(k),c=coordC(k);
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      candidates.add(packCoord(r+dr,c+dc));
+    }
+  }
+
+  const nextDiff=new Set();
+  for(const k of candidates){
+    const r=coordR(k),c=coordC(k);
+    const now=stateCellValue(state,k);
+    const n=stateNeighborCount(state,r,c);
+    const nextVal=now
+      ? ((n>=minS&&n<=maxS)?1:0)
+      : (((bornMask&(1<<n))!==0)?1:0);
+    if(nextVal!==nextBg)nextDiff.add(k);
+    if(nextDiff.size>LAB_DIFF_LIMIT)return {bg:nextBg,diff:nextDiff,overflow:true};
+  }
+  return {bg:nextBg,diff:nextDiff,overflow:false};
+}
+function countAliveBoard(state){
+  if(!state)return 0;
+  return state.bg===1?Infinity:state.diff.size;
+}
+function labRuleLabel(mask,minS,maxS){
+  const born=maskToValues(mask).join("")||"∅";
+  return `B${born}/S${survivalCode(minS,maxS)}`;
+}
+function currentLabPattern(){
+  return getPattern(labSourcePatternId)||getPattern(analysis.patternIds[0])||patterns[0]||null;
+}
+function populateLabPatternSelect(){
+  const sel=document.getElementById("labPatternSelect");
+  if(!sel)return;
+  const old=labSourcePatternId;
+  sel.innerHTML="";
+  for(const p of patterns){
+    const opt=document.createElement("option");
+    opt.value=p.id;
+    const active=analysis.patternIds.includes(p.id)?" · active":"";
+    opt.textContent=p.name+active;
+    sel.appendChild(opt);
+  }
+  if(old&&patterns.some(p=>p.id===old))sel.value=old;
+  else if(analysis.patternIds[0])sel.value=analysis.patternIds[0];
+  else if(patterns[0])sel.value=patterns[0].id;
+  labSourcePatternId=sel.value||null;
+}
+function stopLabPlayback(){
+  labPlaying=false;
+  if(labTimer!==null){clearInterval(labTimer);labTimer=null}
+  const btn=document.getElementById("labPlayBtn");
+  if(btn)btn.textContent="▶ Play";
+}
+function normalizedLabShape(state){
+  if(!state||!state.diff.size||state.diff.size>12000)return null;
+  const b=stateBounds(state);
+  const arr=[];
+  for(const k of state.diff){
+    const rr=coordR(k)-b.minR,cc=coordC(k)-b.minC;
+    arr.push((((rr&65535)<<16)|(cc&65535))>>>0);
+  }
+  arr.sort((a,b)=>a-b);
+  return {
+    key:state.bg+":"+b.h+"x"+b.w+":"+arr.join("."),
+    bg:state.bg,minR:b.minR,minC:b.minC
+  };
+}
+function labTranslatedSubsetMatch(past,current){
+  if(!past||!current||past.bg!==current.bg)return null;
+  if(past.diff.size<3||current.diff.size<=past.diff.size)return null;
+  if(past.diff.size>3500)return null;
+
+  const pb=stateBounds(past),cb=stateBounds(current);
+  if(cb.h*cb.w<=pb.h*pb.w||current.diff.size<past.diff.size+2)return null;
+
+  const offsets=[
+    [cb.minR-pb.minR,cb.minC-pb.minC],
+    [cb.maxR-pb.maxR,cb.maxC-pb.maxC],
+    [cb.minR-pb.minR,cb.maxC-pb.maxC],
+    [cb.maxR-pb.maxR,cb.minC-pb.minC],
+    [Math.round((cb.minR+cb.maxR-pb.minR-pb.maxR)/2),
+     Math.round((cb.minC+cb.maxC-pb.minC-pb.maxC)/2)]
+  ];
+
+  // Earlier structure PLUS every immediately neighboring cell.
+  const contextKeys=new Set();
+  for(const k of past.diff){
+    const r=coordR(k),c=coordC(k);
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        contextKeys.add(packCoord(r+dr,c+dc));
+      }
+    }
+  }
+
+  for(const [dr,dc] of offsets){
+    const translated=[];
+    const translatedContext=[];
+    let ok=true;
+
+    // Core structure must be present exactly after translation.
+    for(const k of past.diff){
+      const r=coordR(k)+dr,c=coordC(k)+dc;
+      if(!current.diff.has(packCoord(r,c))){ok=false;break}
+      translated.push([r,c]);
+    }
+    if(!ok)continue;
+
+    // Every cell in the one-cell Moore neighborhood must have the same
+    // exception/non-exception state. Same background => same alive/dead state.
+    for(const k of contextKeys){
+      const oldIsException=past.diff.has(k);
+      const r=coordR(k)+dr,c=coordC(k)+dc;
+      const newIsException=current.diff.has(packCoord(r,c));
+      if(oldIsException!==newIsException){
+        ok=false;
+        break;
+      }
+      if(!oldIsException)translatedContext.push([r,c]);
+    }
+
+    if(ok){
+      return {dr,dc,translated,context:translatedContext};
+    }
+  }
+  return null;
+}
+
+
+function gcdInt(a,b){
+  a=Math.abs(Math.round(a));b=Math.abs(Math.round(b));
+  while(b){const t=b;b=a%b;a=t}
+  return a||1;
+}
+function reducedRate(delta,generations){
+  const g=gcdInt(delta,generations);
+  return [Math.round(delta/g),Math.round(generations/g)];
+}
+function formatCellRate(rate){
+  if(!rate)return "—";
+  const [n,d]=rate;
+  if(n===1&&d===1)return "1 cell / generation";
+  if(d===1)return `${n} cells / generation`;
+  if(n===1)return `1 cell / ${d} generations`;
+  return `${n} cells / ${d} generations`;
+}
+function labBackgroundPhasePeriod(history){
+  const t=history.length-1;
+  if(t>=3){
+    const a=history[t],b=history[t-1],c=history[t-2],d=history[t-3];
+    if(a.bg===c.bg&&b.bg===d.bg&&a.bg!==b.bg)return 2;
+  }
+  if(t>=1&&history[t].bg===history[t-1].bg)return 1;
+  return null;
+}
+function labSymmetricFrontGrowthDecision(history){
+  const t=history.length-1,current=history[t];
+  if(!current||current.diff.size<4)return null;
+
+  const phase=labBackgroundPhasePeriod(history);
+  if(!phase)return null;
+
+  const times=[t-3*phase,t-2*phase,t-phase,t];
+  if(times[0]<0)return null;
+  const states=times.map(g=>history[g]);
+  if(states.some(x=>!x||!x.diff.size||x.bg!==current.bg))return null;
+
+  const bs=states.map(stateBounds);
+  const centerR=bs.map(b=>b.minR+b.maxR);
+  const centerC=bs.map(b=>b.minC+b.maxC);
+  if(!centerR.every(x=>x===centerR[0])||!centerC.every(x=>x===centerC[0]))return null;
+
+  const steps=[];
+  for(let i=1;i<bs.length;i++){
+    steps.push({
+      top:bs[i-1].minR-bs[i].minR,
+      bottom:bs[i].maxR-bs[i-1].maxR,
+      left:bs[i-1].minC-bs[i].minC,
+      right:bs[i].maxC-bs[i-1].maxC
+    });
+  }
+
+  for(const side of ["top","bottom","left","right"]){
+    const vals=steps.map(s=>s[side]);
+    if(vals.some(v=>v<=0))return null;
+    if(!vals.every(v=>v===vals[0]))return null;
+  }
+
+  const d=steps[0].top;
+  if(!steps.every(s=>s.top===d&&s.bottom===d&&s.left===d&&s.right===d))return null;
+
+  const prev=states[2],prevB=bs[2],curB=bs[3];
+  const added=[];
+  for(const k of current.diff){
+    const r=coordR(k),c=coordC(k);
+    if(r<prevB.minR||r>prevB.maxR||c<prevB.minC||c>prevB.maxC){
+      added.push([r,c]);
+    }
+  }
+
+  const rate=reducedRate(d,phase);
+
+  return {
+    outcome:4,
+    gen:t,
+    decisionGens:times,
+    evidence:"symmetric-front-growth",
+    inverse:false,
+    blinkPeriod:phase===2?2:null,
+    growthRate:{
+      top:rate,bottom:rate,left:rate,right:rate,
+      symmetric:true
+    },
+    growthHighlight:{
+      generation:t,
+      baseGeneration:times[2],
+      frontBox:{
+        minR:prevB.minR,maxR:prevB.maxR,
+        minC:prevB.minC,maxC:prevB.maxC
+      },
+      added
+    }
+  };
+}
+function labExpansionRateFromDecision(decision){
+  if(!decision)return null;
+  if(decision.growthRate)return decision.growthRate;
+
+  const gens=decision.decisionGens||[];
+  if(gens.length<2)return null;
+  const a=gens[0],b=gens[gens.length-1];
+  if(!labHistory[a]||!labHistory[b]||b<=a)return null;
+
+  const ba=stateBounds(labHistory[a]),bb=stateBounds(labHistory[b]);
+  const dt=b-a;
+  const deltas={
+    top:ba.minR-bb.minR,
+    bottom:bb.maxR-ba.maxR,
+    left:ba.minC-bb.minC,
+    right:bb.maxC-ba.maxC
+  };
+  const out={};
+  for(const side of ["top","bottom","left","right"]){
+    if(deltas[side]>0)out[side]=reducedRate(deltas[side],dt);
+  }
+  if(!Object.keys(out).length)return null;
+  out.symmetric=["top","bottom","left","right"].every(
+    s=>out[s]&&out[s][0]*out.top[1]===out.top[0]*out[s][1]
+  );
+  return out;
+}
+
+function labStructuralGrowthDecision(history){
+  const t=history.length-1,current=history[t];
+  if(!current||current.diff.size<4)return null;
+  const matches=[];
+
+  for(let p=t-2;p>=Math.max(0,t-80);p--){
+    const match=labTranslatedSubsetMatch(history[p],current);
+    if(!match)continue;
+    matches.push({p,match});
+
+    if(matches.length>=2){
+      // Use the most recent structural match for the board overlay.
+      const recent=matches[0];
+      const repeatedSet=new Set(
+        recent.match.translated.map(([r,c])=>packCoord(r,c))
+      );
+      const added=[];
+      for(const k of current.diff){
+        if(!repeatedSet.has(k))added.push([coordR(k),coordC(k)]);
+      }
+
+      return {
+        outcome:4,
+        gen:t,
+        decisionGens:[matches[1].p,recent.p,t],
+        evidence:"structural-growth",
+        inverse:current.bg===1&&current.diff.size>0,
+        growthHighlight:{
+          generation:t,
+          baseGeneration:recent.p,
+          offset:[recent.match.dr,recent.match.dc],
+          repeated:recent.match.translated,
+          context:recent.match.context||[],
+          added
+        }
+      };
+    }
+  }
+  return null;
+}
+function detectLabConclusion(history){
+  const t=history.length-1,state=history[t];
+  if(!state)return null;
+
+  const inverse=state.bg===1&&state.diff.size>0;
+  if(state.overflow)return {outcome:5,gen:t,decisionGens:[t],inverse};
+
+  if(state.diff.size===0){
+    if(state.bg===0 && !(labMask&1)){
+      return {outcome:0,gen:t,decisionGens:[t],inverse:false};
+    }
+    if(state.bg===1 && 8>=labMinS&&8<=labMaxS){
+      return {outcome:6,gen:t,decisionGens:[t],inverse:false};
+    }
+
+    // Uniform whole-board oscillation.
+    for(let p=0;p<t;p++){
+      const old=history[p];
+      if(old&&old.diff.size===0&&old.bg===state.bg){
+        const period=t-p;
+        const cycle=Array.from({length:period},(_,i)=>t-period+1+i);
+        return {outcome:2,gen:t,decisionGens:cycle,period,inverse:false};
+      }
+    }
+  }
+
+  if(state.diff.size){
+    // Same recurrence test for a finite live pattern OR finite dead exceptions.
+    const info=normalizedLabShape(state);
+    if(info){
+      for(let p=0;p<t;p++){
+        const old=normalizedLabShape(history[p]);
+        if(!old||old.key!==info.key)continue;
+
+        const period=t-p;
+        const moved=old.minR!==info.minR||old.minC!==info.minC;
+        const cycle=Array.from({length:period},(_,i)=>t-period+1+i);
+
+        if(period===1&&!moved){
+          // Highlight both states that prove the fixed point.
+          return {outcome:1,gen:t,decisionGens:[p,t],period,inverse};
+        }
+        if(!moved){
+          return {outcome:2,gen:t,decisionGens:cycle,period,inverse};
+        }
+        return {outcome:3,gen:t,decisionGens:cycle,period,inverse};
+      }
+    }
+
+    const growth=labStructuralGrowthDecision(history);
+    if(growth){
+      growth.inverse=inverse;
+      return growth;
+    }
+
+    const frontGrowth=labSymmetricFrontGrowthDecision(history);
+    if(frontGrowth)return frontGrowth;
+  }
+  return null;
+}
+function buildLabTrajectory(resetCurrent=true){
+  stopLabPlayback();
+  populateLabPatternSelect();
+  const p=currentLabPattern();
+  labHistory=[stateFromPattern(p)];
+  labGrowthCandidate=null;
+
+  let exact=null;
+  let first=detectLabConclusion(labHistory);
+  if(first){
+    if(first.outcome===4)labGrowthCandidate=first;
+    else if(isTerminalLabOutcome(first.outcome))exact=first;
+  }
+
+  for(let g=1;g<=maxGenerations&&!exact;g++){
+    labHistory.push(stepLabBoard(labHistory[g-1],labMinS,labMaxS,labMask));
+    const d=detectLabConclusion(labHistory);
+    if(!d)continue;
+    if(d.outcome===4){
+      if(!labGrowthCandidate)labGrowthCandidate=d;
+      // Growth is evidence, not a terminal proof: keep simulating.
+      continue;
+    }
+    if(isTerminalLabOutcome(d.outcome))exact=d;
+  }
+
+  labConclusion=exact || labGrowthCandidate || {
+    outcome:5,
+    gen:maxGenerations,
+    decisionGens:[maxGenerations],
+    evidence:"checkpoint"
+  };
+
+  labCurrent=resetCurrent?0:Math.min(labCurrent,labHistory.length-1);
+  labDecisionGens=[...(labConclusion?.decisionGens||[labConclusion?.gen].filter(Number.isFinite))];
+  labEditedGenerations.clear();
+  labNeedsFutureRebuild=false;
+  document.getElementById("labBranchNote")?.classList.remove("show");
+  renderLab();
+}
+function ensureLabForRule(mask,minS,maxS){
+  const changed=labMask!==mask||labMinS!==minS||labMaxS!==maxS;
+  labMask=mask;labMinS=minS;labMaxS=maxS;
+  const preferred=analysis.patternIds[0]||patterns[0]?.id||null;
+  if(!labSourcePatternId||!patterns.some(p=>p.id===labSourcePatternId))labSourcePatternId=preferred;
+  populateLabPatternSelect();
+  if(changed||!labHistory.length)buildLabTrajectory(true);
+  else renderLab();
+}
+function rebuildLabFuture(){
+  if(!labHistory.length)return;
+  const keep=labHistory.slice(0,labCurrent+1);
+  labGrowthCandidate=null;
+
+  let exact=null;
+  const initial=detectLabConclusion(keep);
+  if(initial){
+    if(initial.outcome===4)labGrowthCandidate=initial;
+    else if(isTerminalLabOutcome(initial.outcome))exact=initial;
+  }
+
+  for(let g=keep.length;g<=maxGenerations&&!exact;g++){
+    keep.push(stepLabBoard(keep[keep.length-1],labMinS,labMaxS,labMask));
+    const d=detectLabConclusion(keep);
+    if(!d)continue;
+    if(d.outcome===4){
+      if(!labGrowthCandidate)labGrowthCandidate=d;
+      continue;
+    }
+    if(isTerminalLabOutcome(d.outcome))exact=d;
+  }
+
+  labHistory=keep;
+  labConclusion=exact || labGrowthCandidate || {
+    outcome:5,
+    gen:maxGenerations,
+    decisionGens:[maxGenerations],
+    evidence:"checkpoint"
+  };
+  labDecisionGens=[...(labConclusion?.decisionGens||[labConclusion?.gen].filter(Number.isFinite))];
+  labNeedsFutureRebuild=false;
+  renderLabTimeline();
+  renderLabBoard();
+}
+function appendLabGeneration(){
+  if(!labHistory.length)return false;
+  if(labNeedsFutureRebuild)rebuildLabFuture();
+
+  // Exact classifications are terminal. Growing/Undecided are not.
+  if(labCurrent>=labHistory.length-1){
+    if(!labCanContinueForever()){
+      stopLabPlayback();
+      renderLabBoard();
+      return false;
+    }
+
+    const next=stepLabBoard(labHistory[labHistory.length-1],labMinS,labMaxS,labMask);
+    labHistory.push(next);
+    labCurrent=labHistory.length-1;
+
+    const d=detectLabConclusion(labHistory);
+    if(d){
+      if(d.outcome===4){
+        if(!labGrowthCandidate)labGrowthCandidate=d;
+        // Retain Growing as the current evidence state, but do not stop.
+        if(!labConclusion || labConclusion.outcome===5)labConclusion=labGrowthCandidate;
+      }else if(isTerminalLabOutcome(d.outcome)){
+        labConclusion=d;
+      }
+    }
+
+    if(!labConclusion){
+      labConclusion={outcome:5,gen:maxGenerations,decisionGens:[maxGenerations],evidence:"checkpoint"};
+    }
+    labDecisionGens=[...(labConclusion?.decisionGens||[labConclusion?.gen].filter(Number.isFinite))];
+
+    const box=document.getElementById("generationTimeline");
+    if(box)box.appendChild(makeGenerationCard(next,labCurrent));
+    renderLabBoard();
+    updateLabTimelineSelection();
+
+    if(!labCanContinueForever())stopLabPlayback();
+    return true;
+  }
+
+  labCurrent++;
+  renderLabBoard();
+  updateLabTimelineSelection();
+  return true;
+}
+function setLabViewportForState(state,forceFit=false){
+  const mode=document.getElementById("labViewMode")?.value||"auto";
+  const b=stateBounds(state);
+  let span=labView.span;
+
+  if(mode==="auto"||forceFit){
+    span=32;
+    const need=Math.max(b.h,b.w)+6;
+    while(span<need&&span<1024)span*=2;
+    labView.auto=true;
+  }else{
+    span=Math.max(8,+mode||32);
+    labView.auto=false;
+  }
+
+  // Integer origin is the key fix: cells can never straddle a grid line.
+  labView.span=span;
+  labView.originR=Math.floor((b.minR+b.maxR-span+1)/2);
+  labView.originC=Math.floor((b.minC+b.maxC-span+1)/2);
+  document.getElementById("labViewLabel").textContent=`${span}×${span}`;
+}
+function drawStateToCanvas(canvas,state,grid=true,fit=false){
+  const ctx=canvas.getContext("2d");
+  const w=canvas.width,h=canvas.height;
+
+  let span=labView.span,originR=labView.originR,originC=labView.originC;
+  if(fit){
+    const b=stateBounds(state);
+    span=32;
+    const need=Math.max(b.h,b.w)+4;
+    while(span<need&&span<1024)span*=2;
+    originR=Math.floor((b.minR+b.maxR-span+1)/2);
+    originC=Math.floor((b.minC+b.maxC-span+1)/2);
+  }
+
+  const bgColor=state?.bg===1?"#151518":"#ffffff";
+  const exceptionColor=state?.bg===1?"#ffffff":"#151518";
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle=bgColor;
+  ctx.fillRect(0,0,w,h);
+
+  const cellW=w/span,cellH=h/span;
+  ctx.fillStyle=exceptionColor;
+  for(const k of state?.diff||[]){
+    const r=coordR(k),c=coordC(k);
+    const rr=r-originR,cc=c-originC;
+    if(rr<0||rr>=span||cc<0||cc>=span)continue;
+    const x0=Math.round(cc*cellW);
+    const x1=Math.round((cc+1)*cellW);
+    const y0=Math.round(rr*cellH);
+    const y1=Math.round((rr+1)*cellH);
+    ctx.fillRect(x0,y0,Math.max(1,x1-x0),Math.max(1,y1-y0));
+  }
+
+  if(grid&&span<=64){
+    ctx.strokeStyle=state?.bg===1?"rgba(255,255,255,.20)":"#e1e1e5";
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let i=0;i<=span;i++){
+      const x=Math.round(i*cellW)+.5;
+      ctx.moveTo(x,0);ctx.lineTo(x,h);
+      const y=Math.round(i*cellH)+.5;
+      ctx.moveTo(0,y);ctx.lineTo(w,y);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawGrowthEvidenceOverlay(canvas){
+  const note=document.getElementById("growthHighlightNote");
+  const gh=labConclusion?.growthHighlight;
+
+  if(!gh || labCurrent!==gh.generation){
+    note?.classList.remove("show");
+    return;
+  }
+  note?.classList.add("show");
+
+  const ctx=canvas.getContext("2d");
+  const w=canvas.width,h=canvas.height;
+  const span=labView.span;
+  const cellW=w/span,cellH=h/span;
+
+  function rectFor(r,c){
+    const rr=r-labView.originR,cc=c-labView.originC;
+    if(rr<0||rr>=span||cc<0||cc>=span)return null;
+    const x0=Math.round(cc*cellW);
+    const x1=Math.round((cc+1)*cellW);
+    const y0=Math.round(rr*cellH);
+    const y1=Math.round((rr+1)*cellH);
+    return [x0,y0,Math.max(1,x1-x0),Math.max(1,y1-y0)];
+  }
+
+  ctx.save();
+
+  // Symmetric-front detector: orange rectangle = previous envelope.
+  if(gh.frontBox){
+    const fb=gh.frontBox;
+    const topLeft=rectFor(fb.minR,fb.minC);
+    const bottomRight=rectFor(fb.maxR,fb.maxC);
+    if(topLeft&&bottomRight){
+      const x=topLeft[0],y=topLeft[1];
+      const x2=bottomRight[0]+bottomRight[2];
+      const y2=bottomRight[1]+bottomRight[3];
+      ctx.setLineDash([8,6]);
+      ctx.strokeStyle="#ef8a17";
+      ctx.lineWidth=3;
+      ctx.strokeRect(x+1,y+1,Math.max(1,x2-x-2),Math.max(1,y2-y-2));
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Dashed orange = neighboring cells whose state also matches.
+  ctx.lineWidth=Math.max(1.5,Math.min(3,cellW*.10));
+  ctx.strokeStyle="rgba(239,138,23,.70)";
+  ctx.fillStyle="rgba(239,138,23,.025)";
+  ctx.setLineDash([Math.max(2,cellW*.16),Math.max(2,cellW*.12)]);
+  for(const [r,c] of gh.context||[]){
+    const rect=rectFor(r,c);
+    if(!rect)continue;
+    const [x,y,cw,ch]=rect;
+    ctx.fillRect(x,y,cw,ch);
+    ctx.strokeRect(x+1,y+1,Math.max(1,cw-2),Math.max(1,ch-2));
+  }
+
+  // Solid orange = the repeated earlier structure.
+  ctx.setLineDash([]);
+  ctx.lineWidth=Math.max(2,Math.min(5,cellW*.16));
+  ctx.strokeStyle="#ef8a17";
+  ctx.fillStyle="rgba(239,138,23,.10)";
+  for(const [r,c] of gh.repeated||[]){
+    const rect=rectFor(r,c);
+    if(!rect)continue;
+    const [x,y,cw,ch]=rect;
+    ctx.fillRect(x,y,cw,ch);
+    ctx.strokeRect(x+1,y+1,Math.max(1,cw-2),Math.max(1,ch-2));
+  }
+
+  // Green = new structure outside the matched core.
+  ctx.strokeStyle="#00a56a";
+  ctx.fillStyle="rgba(0,165,106,.24)";
+  for(const [r,c] of gh.added||[]){
+    const rect=rectFor(r,c);
+    if(!rect)continue;
+    const [x,y,cw,ch]=rect;
+    ctx.fillRect(x,y,cw,ch);
+    ctx.strokeRect(x+1,y+1,Math.max(1,cw-2),Math.max(1,ch-2));
+  }
+
+  ctx.restore();
+}
+
+function renderLabBoard(){
+  if(!labHistory.length)return;
+  const state=labHistory[labCurrent];
+  if(!labDrawing)setLabViewportForState(state,false);
+  const labCanvas=document.getElementById("labCanvas");
+  drawStateToCanvas(labCanvas,state,true,false);
+  drawGrowthEvidenceOverlay(labCanvas);
+
+  document.getElementById("labGenerationLabel").textContent=`Generation ${labCurrent} · view ${labView.span}×${labView.span}`;
+
+  const alive=countAliveBoard(state);
+  let aliveText;
+  if(state.bg===1){
+    aliveText=state.diff.size
+      ? `∞ · all alive except ${state.diff.size.toLocaleString()} dead`
+      : "∞ · every cell alive";
+  }else{
+    aliveText=`${state.diff.size.toLocaleString()} alive · all others dead`;
+  }
+  document.getElementById("labAliveText").textContent=aliveText;
+
+  document.getElementById("labTrajectoryText").textContent=`Generated 0–${labHistory.length-1}`;
+
+  const bgText=document.getElementById("labBackgroundDynamicsText");
+  const phase=labBackgroundPhasePeriod(labHistory);
+  if(phase===2){
+    bgText.textContent="Blinking P2 · infinite background alternates dead ↔ alive";
+  }else{
+    bgText.textContent=state.bg===1?"alive background":"dead background";
+  }
+
+  const rateText=document.getElementById("labGrowthRateText");
+  const growthDecision=(labConclusion?.outcome===4?labConclusion:labGrowthCandidate);
+  const rates=labExpansionRateFromDecision(growthDecision);
+  if(rates){
+    if(rates.symmetric&&rates.top){
+      rateText.textContent=`${formatCellRate(rates.top)} per side`;
+    }else{
+      const parts=[];
+      for(const [label,key] of [["↑","top"],["↓","bottom"],["←","left"],["→","right"]]){
+        if(rates[key])parts.push(`${label} ${formatCellRate(rates[key])}`);
+      }
+      rateText.textContent=parts.join(" · ")||"—";
+    }
+  }else{
+    rateText.textContent="—";
+  }
+
+  const conclusionEl=document.getElementById("labConclusionText");
+  if(labConclusion){
+    let extra="";
+    if(labConclusion.period)extra=` · period ${labConclusion.period}`;
+    if(labConclusion.evidence==="structural-growth")extra=" · structural growth evidence";
+    const inv=labConclusion.inverse?"⁻¹":"";
+    if(labConclusion.outcome===4){
+      const base=labConclusion.growthHighlight?.baseGeneration;
+      const relation=Number.isFinite(base)?` · compared with G${base}`:"";
+      const blink=labConclusion.blinkPeriod?` · Blink P${labConclusion.blinkPeriod}`:"";
+      if(labConclusion.evidence==="symmetric-front-growth"){
+        extra=" · stable symmetric front expansion";
+      }
+      conclusionEl.innerHTML=`<b>${OUTCOME_LABELS[4]}${inv}</b> · first evidence at generation ${labConclusion.gen}${relation}${blink}${extra}<br><span class="smallNote">${labConclusion.evidence==="symmetric-front-growth"?"Orange box = previous envelope; green = newly occupied exception structure outside it.":"Solid orange = repeated earlier structure; dashed orange = its verified matching neighbor context; green = additional structure outside that context."} Not terminal — simulation may continue indefinitely.</span>`;
+    }else if(labConclusion.outcome===5){
+      conclusionEl.innerHTML=`<b>${OUTCOME_LABELS[5]}${inv}</b> after generation ${maxGenerations}<br><span class="smallNote">Classification checkpoint only — simulation may continue indefinitely.</span>`;
+    }else{
+      conclusionEl.innerHTML=`<b>${OUTCOME_LABELS[labConclusion.outcome]}${inv}</b> at generation ${labConclusion.gen}${extra}`;
+    }
+    if(labConclusion.inverse){
+      conclusionEl.innerHTML+=`<br><span class="smallNote">${inverseMeaning()}</span>`;
+    }
+  }else{
+    conclusionEl.textContent="—";
+  }
+
+  document.getElementById("labPrevBtn").disabled=labCurrent<=0;
+  document.getElementById("labNextBtn").disabled=labCurrent>=labHistory.length-1 && !labCanContinueForever();
+}
+function makeGenerationCard(state,g){
+  const card=document.createElement("button");
+  card.type="button";card.className="genCard";card.dataset.g=g;
+  if(g===labCurrent)card.classList.add("current");
+  if(labEditedGenerations.has(g))card.classList.add("edited");
+  if(labDecisionGens.includes(g))card.classList.add("decision");
+  const c=document.createElement("canvas");c.width=48;c.height=48;
+  drawStateToCanvas(c,state,false,true);
+  const label=document.createElement("span");label.textContent=`G${g}`;
+  card.append(c,label);
+  card.addEventListener("click",()=>{
+    stopLabPlayback();
+    labCurrent=g;
+    renderLabBoard();
+    updateLabTimelineSelection();
+  });
+  return card;
+}
+function renderLabTimeline(){
+  const box=document.getElementById("generationTimeline");
+  if(!box)return;
+  box.innerHTML="";
+  for(let g=0;g<labHistory.length;g++)box.appendChild(makeGenerationCard(labHistory[g],g));
+  updateLabTimelineSelection(false);
+}
+function updateLabTimelineSelection(scroll=true){
+  const box=document.getElementById("generationTimeline");
+  if(!box)return;
+  for(const card of box.querySelectorAll(".genCard")){
+    const g=+card.dataset.g;
+    card.classList.toggle("current",g===labCurrent);
+    card.classList.toggle("edited",labEditedGenerations.has(g));
+    card.classList.toggle("decision",labDecisionGens.includes(g));
+  }
+  if(scroll){
+    const current=box.querySelector(`.genCard[data-g="${labCurrent}"]`);
+    current?.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
+  }
+}
+function renderLab(){
+  if(labMask===null)return;
+  const bornVals=maskToValues(labMask);
+  document.getElementById("labRuleTitle").textContent=`Rule laboratory · ${labRuleLabel(labMask,labMinS,labMaxS)}`;
+  document.getElementById("labRuleText").textContent=labRuleLabel(labMask,labMinS,labMaxS);
+  document.getElementById("labBornText").textContent=`{${bornVals.join(", ")}}`;
+  document.getElementById("labSurviveText").textContent=labMinS>labMaxS?"S∅ · no living cell survives":`${labMinS}–${labMaxS} neighbors`;
+  renderLabBoard();
+  renderLabTimeline();
+}
+function labCellFromEvent(e){
+  const canvas=document.getElementById("labCanvas");
+  const rect=canvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)/rect.width;
+  const y=(e.clientY-rect.top)/rect.height;
+  const c=Math.floor(x*labView.span)+labView.originC;
+  const r=Math.floor(y*labView.span)+labView.originR;
+  return [r,c];
+}
+function setLabCell(state,r,c,value){
+  const key=packCoord(r,c);
+  if(value===state.bg)state.diff.delete(key);
+  else state.diff.add(key);
+}
+function editLabCell(e){
+  const state=labHistory[labCurrent];
+  if(!state)return;
+  const [r,c]=labCellFromEvent(e);
+  if(!labEditedGenerations.has(labCurrent)){
+    labHistory[labCurrent]={bg:state.bg,diff:new Set(state.diff),overflow:false};
+    labEditedGenerations.add(labCurrent);
+  }
+  const edited=labHistory[labCurrent];
+  setLabCell(edited,r,c,labDrawValue);
+  labHistory=labHistory.slice(0,labCurrent+1);
+  labNeedsFutureRebuild=true;
+  labConclusion=null;
+  labDecisionGens=[];
+  document.getElementById("labBranchNote").classList.add("show");
+  renderLabBoard();
+  updateLabTimelineSelection(false);
+}
+function useCurrentLabForMultiverse(){
+  const state=labHistory[labCurrent];
+  if(!state)return;
+
+  const exceptions=stateExceptionCoords(state);
+  const id=newId();
+  const name=`Lab ${labRuleLabel(labMask,labMinS,labMaxS)} · G${labCurrent}`;
+
+  patterns.push({
+    id,name,size:PATTERN_N,
+    background:state.bg,
+    exceptions,
+    coords:state.bg===0?exceptions:[],
+    cells:state.bg===0?centeredCoordsToCells(exceptions):patternEditorCells({background:1,exceptions}),
+    source:{type:"rule_lab",rule:labRuleLabel(labMask,labMinS,labMaxS),generation:labCurrent}
+  });
+
+  analysis.mode="single";
+  analysis.patternIds=[id];
+  selectedPatternId=id;
+  labSourcePatternId=id;
+  document.getElementById("analysisMode").value="single";
+  renderPatternList();
+  updatePatternChip();
+  invalidateResults(`Using ${name} as the multiverse input`);
+  startCalculation([...tiles.keys()],true);
+}
+function setLabManualSpan(span){
+  span=Math.max(8,Math.min(1024,span));
+  labView.span=span;
+  labView.auto=false;
+  const select=document.getElementById("labViewMode");
+  const exact=[...select.options].find(o=>+o.value===span);
+  select.value=exact?String(span):"auto";
+
+  const state=labHistory[labCurrent];
+  const b=stateBounds(state);
+  labView.originR=Math.floor((b.minR+b.maxR-span+1)/2);
+  labView.originC=Math.floor((b.minC+b.maxC-span+1)/2);
+  document.getElementById("labViewLabel").textContent=`${span}×${span}`;
+  drawStateToCanvas(document.getElementById("labCanvas"),state,true,false);
+}
+async function toggleLabFullscreen(){
+  const wrap=document.getElementById("labBoardWrapEl");
+  try{
+    if(document.fullscreenElement){
+      await document.exitFullscreen();
+    }else if(wrap.requestFullscreen){
+      await wrap.requestFullscreen();
+    }else{
+      statusEl.textContent="Fullscreen is not supported by this browser";
+    }
+  }catch(err){
+    statusEl.textContent="Could not enter fullscreen";
+  }
+}
+function initLabEvents(){
+  const canvas=document.getElementById("labCanvas");
+  if(!canvas||canvas.dataset.ready==="1")return;
+  canvas.dataset.ready="1";
+  canvas.addEventListener("contextmenu",e=>e.preventDefault());
+  canvas.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    stopLabPlayback();
+    labDrawing=true;
+    labDrawValue=e.button===2?0:1;
+    canvas.setPointerCapture(e.pointerId);
+    editLabCell(e);
+  });
+  canvas.addEventListener("pointermove",e=>{if(labDrawing)editLabCell(e)});
+  const finish=()=>{
+    if(!labDrawing)return;
+    labDrawing=false;
+    if(labNeedsFutureRebuild)rebuildLabFuture();
+  };
+  canvas.addEventListener("pointerup",finish);
+  canvas.addEventListener("pointercancel",finish);
+
+  document.getElementById("labPrevBtn").addEventListener("click",()=>{
+    stopLabPlayback();
+    if(labCurrent>0){
+      labCurrent--;
+      renderLabBoard();
+      updateLabTimelineSelection();
+    }
+  });
+  document.getElementById("labNextBtn").addEventListener("click",()=>{
+    stopLabPlayback();
+    appendLabGeneration();
+  });
+
+  document.getElementById("labPlayBtn").addEventListener("click",()=>{
+    if(labPlaying){stopLabPlayback();return}
+    if(labNeedsFutureRebuild)rebuildLabFuture();
+
+    // Playback begins from the currently selected generation.
+    // Exact outcomes stop at their decision state.
+    // Growing and Undecided may continue beyond the classification checkpoint.
+    renderLabBoard();
+    updateLabTimelineSelection();
+
+    labPlaying=true;
+    document.getElementById("labPlayBtn").textContent="⏸ Pause";
+    const speed=Math.max(1,+document.getElementById("labSpeed").value||4);
+    labTimer=setInterval(()=>{
+      if(labCurrent<labHistory.length-1){
+        labCurrent++;
+        renderLabBoard();
+        updateLabTimelineSelection();
+        if(labCurrent>=labHistory.length-1 && !labCanContinueForever())stopLabPlayback();
+        return;
+      }
+
+      if(!labCanContinueForever()){
+        stopLabPlayback();
+        renderLabBoard();
+        return;
+      }
+
+      appendLabGeneration();
+    },Math.round(1000/speed));
+  });
+
+  document.getElementById("labSpeed").addEventListener("change",()=>{
+    if(!labPlaying)return;
+    stopLabPlayback();
+    document.getElementById("labPlayBtn").click();
+  });
+
+  document.getElementById("labResetBtn").addEventListener("click",()=>buildLabTrajectory(true));
+  document.getElementById("labClearBtn").addEventListener("click",()=>{
+    stopLabPlayback();
+    labHistory=[{bg:0,diff:new Set(),overflow:false}];
+    labCurrent=0;
+    labEditedGenerations=new Set([0]);
+    labNeedsFutureRebuild=true;
+    labConclusion=null;
+    document.getElementById("labBranchNote").classList.add("show");
+    rebuildLabFuture();
+  });
+  document.getElementById("labPatternSelect").addEventListener("change",e=>{
+    labSourcePatternId=e.target.value;
+    buildLabTrajectory(true);
+  });
+
+  document.getElementById("labViewMode").addEventListener("change",e=>{
+    const state=labHistory[labCurrent];
+    if(e.target.value==="auto"){
+      labView.auto=true;
+      setLabViewportForState(state,true);
+      renderLabBoard();
+    }else{
+      setLabManualSpan(+e.target.value);
+    }
+  });
+  document.getElementById("labZoomInBtn").addEventListener("click",()=>{
+    setLabManualSpan(Math.max(8,Math.floor(labView.span/2)));
+  });
+  document.getElementById("labZoomOutBtn").addEventListener("click",()=>{
+    setLabManualSpan(Math.min(1024,labView.span*2));
+  });
+  document.getElementById("labFitBtn").addEventListener("click",()=>{
+    document.getElementById("labViewMode").value="auto";
+    labView.auto=true;
+    setLabViewportForState(labHistory[labCurrent],true);
+    renderLabBoard();
+  });
+  document.getElementById("labFullscreenBtn").addEventListener("click",toggleLabFullscreen);
+  document.addEventListener("fullscreenchange",()=>{
+    document.getElementById("labFullscreenBtn").textContent=
+      document.fullscreenElement?"⛶ Exit full screen":"⛶ Full screen";
+  });
+
+  document.getElementById("labUseMultiverseBtn").addEventListener("click",useCurrentLabForMultiverse);
+}
+
+document.addEventListener("keydown",e=>{
+  if(!document.getElementById("universeModal").classList.contains("open"))return;
+  const tag=(e.target?.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea"||tag==="select")return;
+  if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;
+  e.preventDefault();
+  stopLabPlayback();
+  if(e.key==="ArrowLeft"&&labCurrent>0){
+    labCurrent--;
+    renderLabBoard();
+    updateLabTimelineSelection();
+    return;
+  }
+  if(e.key==="ArrowRight"){
+    if(labCurrent<labHistory.length-1){
+      labCurrent++;
+      renderLabBoard();
+      updateLabTimelineSelection();
+    }else if(labCanContinueForever()){
+      appendLabGeneration();
+    }
+  }
+});
+
+/* ---------- Universe information ---------- */
+function renderOutcomeLegend(){
+  const box=document.getElementById("outcomeLegend");
+  box.innerHTML="";
+  for(let i=0;i<OUTCOME_LABELS.length;i++){
+    const row=document.createElement("div");row.className="legendItem";
+    const sw=document.createElement("span");sw.className="legendSwatch";sw.style.background=outcomeColors[i];
+    const tx=document.createElement("span");
+    tx.textContent=OUTCOME_LABELS[i]
+      +(i===4?" · structural recurrence with more live cells":"")
+      +(i===6?" · the entire infinite board is alive and remains alive":"");
+    row.append(sw,tx);box.appendChild(row);
+  }
+}
+function openUniverseInfo(mask){
+  openUniverseMask=mask;
+  selectedSurvivalCell=mask===CONWAY_BORN_MASK?[CONWAY_MIN_S,CONWAY_MAX_S]:[0,0];
+  document.getElementById("universeModal").classList.add("open");
+  initLabEvents();
+  renderOutcomeLegend();
+  renderUniverseInfo(mask);
+}
+function closeUniverseInfo(){
+  stopLabPlayback();
+  document.getElementById("universeModal").classList.remove("open");
+  openUniverseMask=null;
+}
+document.getElementById("closeUniverseBtn").onclick=closeUniverseInfo;
+document.getElementById("universeModal").addEventListener("pointerdown",e=>{
+  if(e.target.id==="universeModal")closeUniverseInfo();
+});
+document.getElementById("calcThisUniverseBtn").onclick=()=>{
+  if(openUniverseMask!==null)startCalculation([openUniverseMask],false);
+};
+function renderUniverseInfo(mask){
+  const born=maskToValues(mask);
+  const bornText=born.length?born.join(""):"∅";
+  document.getElementById("universeTitle").textContent=`Born ${bornText} universe`;
+  document.getElementById("universeSubtitle").textContent=`mask ${mask} · ${popcount(mask)} birth count${popcount(mask)===1?"":"s"}`;
+
+  const note=document.getElementById("universeConwayNote");
+  note.innerHTML=mask===CONWAY_BORN_MASK
+    ? `<div class="conwayNote"><b>Conway's original Game of Life lives here:</b> B3/S23 = Born {3}, survive with 2–3 neighbors. Its Survival cell is permanently marked C.</div>`
+    : "";
+
+  const result=resultCache.get(mask);
+  document.getElementById("calcThisUniverseBtn").style.display=result?"none":"inline-block";
+  document.getElementById("universeCalcNote").textContent=result
+    ? `Calculated for ${activeAnalysisLabel()}. Each rule stops when classified; Undecided can run to generation ${maxGenerations}. The infinite board is stored as a dead/alive background plus finite exceptions.`
+    : `Not yet calculated for ${activeAnalysisLabel()}. Click “Calculate this universe” or calculate the full multiverse.`;
+
+  // Normalize any old lower-triangle selection to the single canonical S∅ rule.
+  if(selectedSurvivalCell[0]>selectedSurvivalCell[1])selectedSurvivalCell=[1,0];
+
+  const grid=document.getElementById("survivalMatrix");
+  grid.innerHTML="";
+
+  const corner=document.createElement("div");
+  corner.className="axisCorner";
+  corner.textContent="Min↓";
+  corner.style.gridColumn="10";
+  corner.style.gridRow="1";
+  grid.appendChild(corner);
+
+  for(let maxS=0;maxS<9;maxS++){
+    const a=document.createElement("div");
+    a.className="axisCell";
+    a.textContent=maxS;
+    a.title="Maximum Survival";
+    a.style.gridColumn=String(maxS+1);
+    a.style.gridRow="1";
+    grid.appendChild(a);
+  }
+
+  for(let minS=0;minS<9;minS++){
+    const a=document.createElement("div");
+    a.className="axisCell";
+    a.textContent=minS;
+    a.title="Minimum Survival";
+    a.style.gridColumn="10";
+    a.style.gridRow=String(minS+2);
+    grid.appendChild(a);
+
+    // Only min <= max exists as a distinct rule.
+    for(let maxS=minS;maxS<9;maxS++){
+      const idx=minS*9+maxS;
+      const b=document.createElement("button");
+      b.type="button";
+      b.className="survivalCell";
+      b.style.gridColumn=String(maxS+1);
+      b.style.gridRow=String(minS+2);
+
+      if(result)b.style.background=outcomeColorFromCounts(result,idx);
+      else b.style.background="rgba(245,245,248,.7)";
+
+      if(result){
+        const off=idx*RESULT_STRIDE;
+        const dom=dominantOutcome(result,idx);
+        const inverseCount=result[off+10]||0;
+        if(dom.total>0 && inverseCount>dom.total/2)b.classList.add("inverse-result");
+      }
+
+      if(mask===CONWAY_BORN_MASK&&minS===CONWAY_MIN_S&&maxS===CONWAY_MAX_S){
+        b.classList.add("conway-rule");
+      }
+      if(selectedSurvivalCell[0]===minS&&selectedSurvivalCell[1]===maxS){
+        b.classList.add("selectedRule");
+      }
+
+      b.title=`Born ${bornText}, survive ${minS}–${maxS}`;
+      b.addEventListener("click",()=>{
+        selectedSurvivalCell=[minS,maxS];
+        renderUniverseInfo(mask);
+      });
+      grid.appendChild(b);
+    }
+  }
+
+  // One square represents every impossible min > max pair: no live cell survives.
+  const noMin=1,noMax=0;
+  const noIdx=noMin*9+noMax;
+  const no=document.createElement("button");
+  no.type="button";
+  no.className="survivalCell no-survival";
+  no.style.gridColumn="1";
+  no.style.gridRow="10";
+  no.textContent="S∅";
+  no.title="No survival: no live cell survives. This replaces every Min > Max cell.";
+  no.style.background=result?outcomeColorFromCounts(result,noIdx):"rgba(245,245,248,.7)";
+  if(result){
+    const off=noIdx*RESULT_STRIDE;
+    const dom=dominantOutcome(result,noIdx);
+    const inverseCount=result[off+10]||0;
+    if(dom.total>0&&inverseCount>dom.total/2)no.classList.add("inverse-result");
+  }
+  if(selectedSurvivalCell[0]>selectedSurvivalCell[1])no.classList.add("selectedRule");
+  no.addEventListener("click",()=>{
+    selectedSurvivalCell=[1,0];
+    renderUniverseInfo(mask);
+  });
+  grid.appendChild(no);
+
+  renderRuleReadout(mask,result,selectedSurvivalCell[0],selectedSurvivalCell[1]);
+  ensureLabForRule(mask,selectedSurvivalCell[0],selectedSurvivalCell[1]);
+}
+function renderRuleReadout(mask,result,minS,maxS){
+  const box=document.getElementById("ruleReadout");
+  const born=maskToValues(mask).join("")||"∅";
+  const impossible=minS>maxS;
+  const sCode=survivalCode(minS,maxS);
+
+  let html=`<b>B${born} / S${sCode}</b><br>Born when a dead cell has {${maskToValues(mask).join(", ")}} live neighbors.<br>`;
+  html+=impossible
+    ? `No living cell survives. S∅ is the single rule represented by every Min > Max combination.`
+    : (minS===maxS
+        ? `A living cell survives with exactly ${minS} live neighbor${minS===1?"":"s"}.`
+        : `A living cell survives with ${minS} through ${maxS} live neighbors.`);
+
+  if(mask===CONWAY_BORN_MASK&&minS===2&&maxS===3){
+    html+=`<br><b style="color:#6b3fa0">This is Conway's original B3/S23 rule.</b>`;
+  }
+
+  if(!result){
+    html+=`<br><br><span style="color:#777">Outcome not calculated yet.</span>`;
+    box.innerHTML=html;
+    return;
+  }
+
+  const idx=minS*9+maxS;
+  const off=idx*RESULT_STRIDE;
+  const dom=dominantOutcome(result,idx);
+  const genAvg=dom.total?result[off+7]/dom.total:0;
+  const genMin=result[off+8]||0;
+  const genMax=result[off+9]||0;
+  const inverseCount=result[off+10]||0;
+  const inverseMajority=dom.total>0&&inverseCount>dom.total/2;
+
+  if(dom.total<=1){
+    html+=`<br><br>Outcome: <b class="inverseNotation">${outcomeLabelWithInverse(dom.index,inverseMajority)}</b>`;
+    html+=`<br>Conclusion reached at <b>generation ${Math.round(genAvg)}</b>.`;
+    if(inverseMajority){
+      html+=`<br><span style="color:#666">${inverseMeaning()}</span>`;
+    }
+  }else{
+    html+=`<br><br><b>Outcome distribution across ${dom.total} selected starting patterns:</b><br>`;
+    const parts=[];
+    for(let k=0;k<7;k++){
+      if(result[off+k]){
+        parts.push(`${OUTCOME_LABELS[k]} ${Math.round(result[off+k]/dom.total*100)}%`);
+      }
+    }
+    html+=parts.join(" · ");
+    if(inverseCount){
+      html+=`<br>Complemented/inverse states: ${Math.round(inverseCount/dom.total*100)}%`;
+    }
+    html+=`<br>Mean conclusion generation: <b>${genAvg.toFixed(1)}</b>`;
+    if(genMin!==genMax)html+=` · range ${genMin}–${genMax}`;
+  }
+
+  if(dom.index===5){
+    html+=`<br><span style="color:#777">Undecided means no supported classification was reached before the generation limit or the finite-exception representation became too large.</span>`;
+  }else if(dom.index===4){
+    html+=`<br><span style="color:#777">Likely growing is intentionally heuristic. Primary test: an earlier translated exception pattern reappears with the same one-cell Moore-neighborhood context while extra structure exists outside it. Snowflake fallback: four same-phase states keep the same center while all four sides expand outward by the same stable amount. Neither test alone is a formal proof of infinite growth.</span>`;
+  }
+  box.innerHTML=html;
+}
+
+/* ---------- Pattern editor + future average mode ---------- */
+let patterns=[];
+let analysis={mode:"single",patternIds:[]};
+let selectedPatternId=null;
+let patternBuffer=new Uint8Array(PATTERN_N*PATTERN_N);
+let patternDrawing=false;
+let patternDrawValue=1;
+
+function newId(){
+  return "p_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,7);
+}
+function cellsArrayToBuffer(cells){
+  const b=new Uint8Array(PATTERN_N*PATTERN_N);
+  for(const i of cells||[])if(i>=0&&i<b.length)b[i]=1;
+  return b;
+}
+function bufferToCells(){
+  const out=[];
+  patternBuffer.forEach((v,i)=>{if(v)out.push(i)});
+  return out;
+}
+function cellsToCenteredCoords(cells){
+  const half=Math.floor(PATTERN_N/2);
+  const out=[];
+  for(const i of cells||[]){
+    const r=Math.floor(i/PATTERN_N),c=i%PATTERN_N;
+    out.push([r-half,c-half]);
+  }
+  return out;
+}
+function centeredCoordsToCells(coords){
+  const half=Math.floor(PATTERN_N/2);
+  const out=[];
+  const seen=new Set();
+  for(const pair of coords||[]){
+    const r=Math.round(+pair[0])+half,c=Math.round(+pair[1])+half;
+    if(r<0||r>=PATTERN_N||c<0||c>=PATTERN_N)continue;
+    const i=r*PATTERN_N+c;
+    if(!seen.has(i)){seen.add(i);out.push(i)}
+  }
+  return out;
+}
+function patternCoords(p){
+  if(!p)return [];
+  if(+p.background===1)return [];
+  if(Array.isArray(p.coords))return p.coords.map(q=>[+q[0],+q[1]]);
+  return cellsToCenteredCoords(p.cells||[]);
+}
+function patternExceptions(p){
+  if(!p)return [];
+  if(Array.isArray(p.exceptions))return p.exceptions.map(q=>[+q[0],+q[1]]);
+  return +p.background===1 ? [] : patternCoords(p);
+}
+function patternStatePayload(p){
+  const background=+p?.background===1?1:0;
+  return {
+    id:p?.id||"",
+    name:p?.name||"Pattern",
+    background,
+    exceptions:background ? patternExceptions(p) : patternCoords(p)
+  };
+}
+function patternAliveCount(p){
+  return +p?.background===1 ? Infinity : patternCoords(p).length;
+}
+function patternEditorCells(p){
+  if(!p)return [];
+  if(+p.background!==1){
+    if(Array.isArray(p.cells)&&p.cells.length)return p.cells;
+    return centeredCoordsToCells(p.coords||[]);
+  }
+  // 32×32 editor preview of an infinite-live background.
+  const all=[];
+  for(let i=0;i<PATTERN_N*PATTERN_N;i++)all.push(i);
+  const dead=new Set(centeredCoordsToCells(patternExceptions(p)));
+  return all.filter(i=>!dead.has(i));
+}
+
+const BUILTIN_PATTERN_PRESETS=[
+  {
+    id:"preset-single-cell",
+    presetKey:"single-cell",
+    name:"Single cell",
+    background:0,
+    exceptions:[[0,0]]
+  },
+  {
+    id:"preset-glider",
+    presetKey:"glider",
+    name:"Glider",
+    background:0,
+    // Standard five-cell Conway glider, centered around the origin.
+    exceptions:[[-1,0],[0,1],[1,-1],[1,0],[1,1]]
+  },
+  {
+    id:"preset-all-dead",
+    presetKey:"all-dead",
+    name:"All dead",
+    background:0,
+    exceptions:[]
+  },
+  {
+    id:"preset-all-alive",
+    presetKey:"all-alive",
+    name:"All alive",
+    background:1,
+    exceptions:[]
+  },
+  {
+    id:"preset-single-dead",
+    presetKey:"single-dead-cell",
+    name:"Single dead cell",
+    background:1,
+    exceptions:[[0,0]]
+  }
+];
+
+function coordsSignature(coords){
+  return (coords||[])
+    .map(q=>`${Math.round(+q[0])},${Math.round(+q[1])}`)
+    .sort()
+    .join("|");
+}
+function presetPatternObject(spec){
+  const background=spec.background?1:0;
+  const exceptions=spec.exceptions.map(q=>[q[0],q[1]]);
+  const coords=background?[]:exceptions.map(q=>[q[0],q[1]]);
+  return {
+    id:spec.id,
+    presetKey:spec.presetKey,
+    builtin:true,
+    name:spec.name,
+    size:PATTERN_N,
+    background,
+    exceptions,
+    coords,
+    cells:patternEditorCells({background,exceptions,coords})
+  };
+}
+function patternMatchesPreset(p,spec){
+  if(!p)return false;
+  const background=+p.background===1?1:0;
+  if(background!==(spec.background?1:0))return false;
+  const existing=background?patternExceptions(p):patternCoords(p);
+  return coordsSignature(existing)===coordsSignature(spec.exceptions);
+}
+function ensureDefaultPresets(){
+  for(const spec of BUILTIN_PATTERN_PRESETS){
+    let p=patterns.find(x=>x.presetKey===spec.presetKey);
+
+    // Migrate an old untouched preset-like pattern instead of duplicating it.
+    if(!p){
+      p=patterns.find(x=>x.name===spec.name && patternMatchesPreset(x,spec));
+      if(p){
+        p.presetKey=spec.presetKey;
+        p.builtin=true;
+      }
+    }
+
+    if(!p){
+      patterns.push(presetPatternObject(spec));
+    }
+  }
+}
+function seedDefaultPatterns(){
+  patterns=BUILTIN_PATTERN_PRESETS.map(presetPatternObject);
+  const single=patterns.find(p=>p.presetKey==="single-cell");
+  analysis={mode:"single",patternIds:[single.id]};
+  selectedPatternId=single.id;
+  patternBuffer=cellsArrayToBuffer(patternEditorCells(single));
+}
+
+function getPattern(id){return patterns.find(p=>p.id===id)||null}
+
+const patternCanvas=document.getElementById("patternCanvas");
+const pctx=patternCanvas.getContext("2d");
+function drawPatternEditor(){
+  const cell=patternCanvas.width/PATTERN_N;
+  pctx.clearRect(0,0,patternCanvas.width,patternCanvas.height);
+  pctx.fillStyle="#fff";
+  pctx.fillRect(0,0,patternCanvas.width,patternCanvas.height);
+
+  pctx.fillStyle="#1d1d1f";
+  for(let r=0;r<PATTERN_N;r++){
+    for(let c=0;c<PATTERN_N;c++){
+      if(patternBuffer[r*PATTERN_N+c]){
+        pctx.fillRect(c*cell,r*cell,cell,cell);
+      }
+    }
+  }
+
+  pctx.strokeStyle="#e4e4e8";
+  pctx.lineWidth=1;
+  pctx.beginPath();
+  for(let i=0;i<=PATTERN_N;i++){
+    const x=Math.round(i*cell)+.5;
+    pctx.moveTo(x,0);pctx.lineTo(x,patternCanvas.height);
+    const y=Math.round(i*cell)+.5;
+    pctx.moveTo(0,y);pctx.lineTo(patternCanvas.width,y);
+  }
+  pctx.stroke();
+}
+function canvasCellFromEvent(e){
+  const rect=patternCanvas.getBoundingClientRect();
+  const c=Math.floor((e.clientX-rect.left)/rect.width*PATTERN_N);
+  const r=Math.floor((e.clientY-rect.top)/rect.height*PATTERN_N);
+  if(c<0||c>=PATTERN_N||r<0||r>=PATTERN_N)return null;
+  return r*PATTERN_N+c;
+}
+function editPatternCell(e){
+  const i=canvasCellFromEvent(e);
+  if(i===null)return;
+  patternBuffer[i]=patternDrawValue;
+  drawPatternEditor();
+}
+patternCanvas.addEventListener("contextmenu",e=>e.preventDefault());
+patternCanvas.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  patternDrawing=true;
+  patternDrawValue=(e.button===2)?0:1;
+  patternCanvas.setPointerCapture(e.pointerId);
+  editPatternCell(e);
+});
+patternCanvas.addEventListener("pointermove",e=>{
+  if(patternDrawing)editPatternCell(e);
+});
+patternCanvas.addEventListener("pointerup",()=>patternDrawing=false);
+patternCanvas.addEventListener("pointercancel",()=>patternDrawing=false);
+
+document.getElementById("clearPatternBtn").onclick=()=>{
+  patternBuffer.fill(0);
+  drawPatternEditor();
+};
+document.getElementById("invertPatternBtn").onclick=()=>{
+  for(let i=0;i<patternBuffer.length;i++)patternBuffer[i]=patternBuffer[i]?0:1;
+  drawPatternEditor();
+};
+document.getElementById("centerPatternBtn").onclick=()=>{
+  const coords=[];
+  for(let r=0;r<PATTERN_N;r++)for(let c=0;c<PATTERN_N;c++)if(patternBuffer[r*PATTERN_N+c])coords.push([r,c]);
+  if(!coords.length)return;
+  const rs=coords.map(x=>x[0]),cs=coords.map(x=>x[1]);
+  const minR=Math.min(...rs),maxR=Math.max(...rs),minC=Math.min(...cs),maxC=Math.max(...cs);
+  const h=maxR-minR+1,w=maxC-minC+1;
+  const offR=Math.floor((PATTERN_N-h)/2)-minR;
+  const offC=Math.floor((PATTERN_N-w)/2)-minC;
+  const next=new Uint8Array(patternBuffer.length);
+  for(const [r,c] of coords){
+    const nr=r+offR,nc=c+offC;
+    if(nr>=0&&nr<PATTERN_N&&nc>=0&&nc<PATTERN_N)next[nr*PATTERN_N+nc]=1;
+  }
+  patternBuffer=next;
+  drawPatternEditor();
+};
+
+function renderPatternList(){
+  const box=document.getElementById("patternList");
+  box.innerHTML="";
+  const avgMode=analysis.mode==="average";
+
+  for(const p of patterns){
+    const row=document.createElement("div");
+    row.className="patternRow"+(selectedPatternId===p.id?" active":"");
+
+    const selector=document.createElement("input");
+    selector.type=avgMode?"checkbox":"radio";
+    selector.name=avgMode?"":"singlePattern";
+    selector.checked=analysis.patternIds.includes(p.id);
+    selector.addEventListener("change",()=>{
+      selectedPatternId=p.id;
+      if(avgMode){
+        if(selector.checked){
+          if(!analysis.patternIds.includes(p.id))analysis.patternIds.push(p.id);
+        }else{
+          analysis.patternIds=analysis.patternIds.filter(id=>id!==p.id);
+        }
+      }else{
+        analysis.patternIds=[p.id];
+      }
+      if(!analysis.patternIds.length)analysis.patternIds=[p.id];
+      renderPatternList();
+      updatePatternChip();
+      invalidateResults("Selected pattern set changed");
+    });
+
+    const name=document.createElement("span");
+    name.className="name";
+    name.textContent=p.name+(p.builtin?" · preset":"");
+    name.onclick=()=>{
+      selectedPatternId=p.id;
+      renderPatternList();
+    };
+
+    const count=document.createElement("small");
+    const aliveCount=patternAliveCount(p);
+    if(Number.isFinite(aliveCount)){
+      count.textContent=`${aliveCount} alive`;
+    }else if(patternExceptions(p).length){
+      count.textContent=`∞ alive · ${patternExceptions(p).length} dead`;
+    }else{
+      count.textContent="∞ alive";
+    }
+    count.style.color="#777";
+
+    row.append(selector,name,count);
+    box.appendChild(row);
+  }
+}
+
+document.getElementById("analysisMode").addEventListener("change",e=>{
+  analysis.mode=e.target.value;
+  if(analysis.mode==="single"){
+    const keep=analysis.patternIds[0] || patterns[0]?.id;
+    analysis.patternIds=keep?[keep]:[];
+    selectedPatternId=keep||null;
+  }else{
+    if(!analysis.patternIds.length&&patterns[0])analysis.patternIds=[patterns[0].id];
+  }
+  renderPatternList();
+  updatePatternChip();
+  invalidateResults("Analysis input changed");
+});
+
+document.getElementById("saveNewPatternBtn").onclick=()=>{
+  const name=document.getElementById("patternNameInput").value.trim() || `Pattern ${patterns.length+1}`;
+  const id=newId();
+  const cells=bufferToCells();
+  patterns.push({id,name,size:PATTERN_N,cells,coords:cellsToCenteredCoords(cells)});
+  selectedPatternId=id;
+  if(analysis.mode==="single")analysis.patternIds=[id];
+  else if(!analysis.patternIds.includes(id))analysis.patternIds.push(id);
+  document.getElementById("patternNameInput").value=name;
+  renderPatternList();
+  updatePatternChip();
+  invalidateResults(`Saved pattern "${name}"`);
+};
+document.getElementById("updatePatternBtn").onclick=()=>{
+  const p=getPattern(selectedPatternId);
+  if(!p){statusEl.textContent="Select a saved pattern first";return}
+  if(p.builtin){
+    statusEl.textContent="Built-in presets stay unchanged. Edit it, then use Save as new pattern.";
+    return;
+  }
+  const name=document.getElementById("patternNameInput").value.trim();
+  if(name)p.name=name;
+  p.cells=bufferToCells();
+  p.coords=cellsToCenteredCoords(p.cells);
+  renderPatternList();
+  updatePatternChip();
+  invalidateResults(`Updated pattern "${p.name}"`);
+};
+document.getElementById("loadPatternBtn").onclick=()=>{
+  const p=getPattern(selectedPatternId);
+  if(!p)return;
+  patternBuffer=cellsArrayToBuffer(patternEditorCells(p));
+  document.getElementById("patternNameInput").value=p.name;
+  drawPatternEditor();
+};
+document.getElementById("deletePatternBtn").onclick=()=>{
+  const selected=getPattern(selectedPatternId);
+  if(selected?.builtin){
+    statusEl.textContent="Built-in presets cannot be deleted.";
+    return;
+  }
+  if(patterns.length<=1){
+    statusEl.textContent="Keep at least one pattern";
+    return;
+  }
+  const id=selectedPatternId;
+  patterns=patterns.filter(p=>p.id!==id);
+  analysis.patternIds=analysis.patternIds.filter(x=>x!==id);
+  selectedPatternId=patterns[0].id;
+  if(!analysis.patternIds.length)analysis.patternIds=[selectedPatternId];
+  const p=getPattern(selectedPatternId);
+  patternBuffer=cellsArrayToBuffer(patternEditorCells(p));
+  document.getElementById("patternNameInput").value=p.name;
+  renderPatternList();
+  drawPatternEditor();
+  updatePatternChip();
+  invalidateResults("Pattern deleted");
+};
+
+function drawMiniFromPatterns(){
+  const canvas=document.getElementById("miniPattern");
+  const ctx=canvas.getContext("2d");
+  const n=PATTERN_N;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#fff";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  const chosen=analysis.patternIds.map(getPattern).filter(Boolean);
+  if(chosen.length){
+    const freq=new Float32Array(n*n);
+    for(const p of chosen)for(const i of patternEditorCells(p))if(i<freq.length)freq[i]+=1;
+    const denom=analysis.mode==="average"?chosen.length:1;
+    const cell=canvas.width/n;
+    for(let i=0;i<freq.length;i++){
+      const f=Math.min(1,freq[i]/denom);
+      if(!f)continue;
+      ctx.fillStyle=`rgba(25,25,28,${0.18+0.82*f})`;
+      const r=Math.floor(i/n),c=i%n;
+      ctx.fillRect(c*cell,r*cell,Math.ceil(cell),Math.ceil(cell));
+    }
+  }
+}
+function updatePatternChip(){
+  const nameEl=document.getElementById("activePatternName");
+  if(analysis.mode==="average"){
+    nameEl.textContent=`Average: ${analysis.patternIds.length} patterns`;
+  }else{
+    const p=getPattern(analysis.patternIds[0]);
+    nameEl.textContent=p?p.name:"No pattern";
+  }
+  drawMiniFromPatterns();
+}
+
+function openPatternModal(){
+  const id=analysis.patternIds[0] || patterns[0]?.id;
+  selectedPatternId=id||null;
+  const p=getPattern(selectedPatternId);
+  if(p){
+    patternBuffer=cellsArrayToBuffer(patternEditorCells(p));
+    document.getElementById("patternNameInput").value=p.name;
+  }
+  document.getElementById("analysisMode").value=analysis.mode;
+  renderPatternList();
+  drawPatternEditor();
+  document.getElementById("patternModal").classList.add("open");
+}
+function closePatternModal(){
+  document.getElementById("patternModal").classList.remove("open");
+  updatePatternChip();
+}
+document.getElementById("patternChip").onclick=openPatternModal;
+document.getElementById("closePatternBtn").onclick=closePatternModal;
+document.getElementById("patternModal").addEventListener("pointerdown",e=>{
+  if(e.target.id==="patternModal")closePatternModal();
+});
+
+
+/* ---------- Random soups ---------- */
+function seedHash(str){
+  let h=2166136261>>>0;
+  for(let i=0;i<str.length;i++){
+    h^=str.charCodeAt(i);
+    h=Math.imul(h,16777619);
+  }
+  return h>>>0;
+}
+function mulberry32(a){
+  return function(){
+    let t=a+=0x6D2B79F5;
+    t=Math.imul(t^t>>>15,t|1);
+    t^=t+Math.imul(t^t>>>7,t|61);
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function createSoupCoords(size,density,rng){
+  const coords=[];
+  const start=-Math.floor(size/2);
+  for(let r=0;r<size;r++)for(let c=0;c<size;c++){
+    if(rng()<density)coords.push([start+r,start+c]);
+  }
+  return coords;
+}
+document.getElementById("generateSoupBtn").addEventListener("click",()=>{
+  const density=Math.max(0,Math.min(100,+document.getElementById("soupDensity").value||0))/100;
+  const size=Math.max(4,Math.min(32,+document.getElementById("soupSize").value||16));
+  const count=Math.max(1,Math.min(100,+document.getElementById("soupCount").value||10));
+  const seed=document.getElementById("soupSeed").value || "multiverse";
+  const ids=[];
+  for(let n=0;n<count;n++){
+    const rng=mulberry32(seedHash(`${seed}|${size}|${density}|${n}`));
+    const coords=createSoupCoords(size,density,rng);
+    const id=newId();
+    const name=`Soup ${Math.round(density*100)}% · ${n+1}`;
+    patterns.push({
+      id,name,size:PATTERN_N,
+      coords,
+      cells:centeredCoordsToCells(coords),
+      soup:{density,size,seed,index:n}
+    });
+    ids.push(id);
+  }
+  analysis.mode="average";
+  analysis.patternIds=ids;
+  selectedPatternId=ids[0];
+  document.getElementById("analysisMode").value="average";
+  const p=getPattern(selectedPatternId);
+  patternBuffer=cellsArrayToBuffer(patternEditorCells(p));
+  document.getElementById("patternNameInput").value=p?.name||"";
+  renderPatternList();
+  drawPatternEditor();
+  updatePatternChip();
+  invalidateResults(`Generated ${count} reproducible soups at ${Math.round(density*100)}% fill`);
+});
+
+/* ---------- Save / export / import ---------- */
+function stateObject(){
+  return {
+    version:15,
+    born_bits:9,
+    format:{
+      positions:"[bornMask,col,row]",
+      lines:"H:col:row or V:col:row",
+      manualColors:"[bornMask,#rrggbb]",
+      patterns:"{id,name,background:0|1,exceptions:[[row,col],...],...}",
+      analysis:"{mode:'single'|'average',patternIds:[...]}"
+    },
+    positions:[...tiles.entries()]
+      .map(([m,t])=>[m,+t.dataset.col,+t.dataset.row])
+      .sort((a,b)=>a[0]-b[0]),
+    lines:[...activeLines].sort(),
+    manualColors:[...manualColors.entries()].sort((a,b)=>a[0]-b[0]),
+    sizeColors:[...sizeColors],
+    outcomeColors:[...outcomeColors],
+    maxGenerations,
+    patterns:patterns.map(p=>({
+      ...p,
+      cells:[...(p.cells||[])],
+      background:+p.background===1?1:0,
+      coords:patternCoords(p),
+      exceptions:patternExceptions(p)
+    })),
+    analysis:{mode:analysis.mode,patternIds:[...analysis.patternIds]}
+  };
+}
+function applyState(obj){
+  if(obj.positions){
+    for(const [m,c,r] of obj.positions){
+      const t=tiles.get(+m);
+      if(t)setTileGridPosition(t,+c,+r);
+    }
+  }
+
+  activeLines.clear();
+  for(const k of(obj.lines||[]))activeLines.add(k);
+
+  manualColors.clear();
+  const oldColors=obj.colors || obj.manualColors || [];
+  for(const [m,c] of oldColors)manualColors.set(+m,c);
+
+  if(Array.isArray(obj.sizeColors)&&obj.sizeColors.length>=10){
+    sizeColors=obj.sizeColors.slice(0,10);
+  }
+  if(Array.isArray(obj.outcomeColors)&&obj.outcomeColors.length>=7){
+    outcomeColors=obj.outcomeColors.slice(0,7);
+  }
+  if(Number.isFinite(+obj.maxGenerations)){
+    maxGenerations=Math.max(10,Math.min(10000,Math.round(+obj.maxGenerations)));
+  }
+  const maxInput=document.getElementById("maxGenerationsInput");
+  if(maxInput)maxInput.value=maxGenerations;
+
+  if(Array.isArray(obj.patterns)&&obj.patterns.length){
+    patterns=obj.patterns.map(p=>{
+      const background=+p.background===1?1:0;
+      const cells=Array.isArray(p.cells)?p.cells.map(Number):[];
+      const coords=Array.isArray(p.coords)
+        ? p.coords.map(q=>[+q[0],+q[1]])
+        : cellsToCenteredCoords(cells);
+      const exceptions=Array.isArray(p.exceptions)
+        ? p.exceptions.map(q=>[+q[0],+q[1]])
+        : (background?[]:coords);
+      return {
+        ...p,
+        id:String(p.id),
+        name:String(p.name||"Pattern"),
+        size:PATTERN_N,
+        background,
+        cells:cells.length?cells:(background?patternEditorCells({background,exceptions}):centeredCoordsToCells(coords)),
+        coords:background?[]:coords,
+        exceptions
+      };
+    });
+  }
+  ensureDefaultPresets();
+
+  if(obj.analysis&&["single","average"].includes(obj.analysis.mode)){
+    analysis={
+      mode:obj.analysis.mode,
+      patternIds:(obj.analysis.patternIds||[]).filter(id=>patterns.some(p=>p.id===id))
+    };
+    if(!analysis.patternIds.length&&patterns[0])analysis.patternIds=[patterns[0].id];
+  }
+
+  selectedPatternId=analysis.patternIds[0]||patterns[0]?.id||null;
+  buildSizePalette();
+  buildOutcomePalette();
+  applyAllTileBaseColors();
+  resizeStage();
+  renderLines();
+  runSearch();
+  updatePatternChip();
+  invalidateResults("");
+}
+
+document.getElementById("saveBtn").onclick=()=>{
+  localStorage.setItem("gol-multiverse-table-v15",JSON.stringify(stateObject()));
+  statusEl.textContent="Saved table + patterns in browser";
+};
+document.getElementById("exportBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify(stateObject())],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="game_of_life_multiverse_table_v15.json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  statusEl.textContent="Full multiverse project exported";
+};
+document.getElementById("importFile").addEventListener("change",async e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  try{
+    applyState(JSON.parse(await f.text()));
+    statusEl.textContent=`Imported ${f.name}`;
+  }catch(err){
+    statusEl.textContent="Import failed: "+err.message;
+  }
+  e.target.value="";
+});
+
+/* ---------- Zoom ---------- */
+function applyZoom(){
+  const sw=parseFloat(stage.style.width)||3400;
+  const sh=parseFloat(stage.style.height)||3100;
+  stageWrap.style.transform=`scale(${zoom})`;
+  stageWrap.style.width=(sw*zoom)+"px";
+  stageWrap.style.height=(sh*zoom)+"px";
+  document.getElementById("zoomLabel").textContent=Math.round(zoom*100)+"%";
+}
+document.getElementById("zoomOutBtn").onclick=()=>{
+  zoom=Math.max(.2,+(zoom-.1).toFixed(2));
+  applyZoom();
+};
+document.getElementById("zoomInBtn").onclick=()=>{
+  zoom=Math.min(2,+(zoom+.1).toFixed(2));
+  applyZoom();
+};
+
+/* ---------- Startup ---------- */
+seedDefaultPatterns();
+buildSizePalette();
+buildOutcomePalette();
+document.getElementById("maxGenerationsInput").value=maxGenerations;
+buildTiles();
+renderLines();
+
+/* v3 first; otherwise migrate the previous v2 browser save automatically */
+const savedV15=localStorage.getItem("gol-multiverse-table-v15");
+const savedV14=localStorage.getItem("gol-multiverse-table-v14");
+const savedV13=localStorage.getItem("gol-multiverse-table-v13");
+const savedV12=localStorage.getItem("gol-multiverse-table-v12");
+const savedV11=localStorage.getItem("gol-multiverse-table-v11");
+const savedV10=localStorage.getItem("gol-multiverse-table-v10");
+const savedV9=localStorage.getItem("gol-multiverse-table-v9");
+const savedV8=localStorage.getItem("gol-multiverse-table-v8");
+const savedV7=localStorage.getItem("gol-multiverse-table-v7");
+const savedV6=localStorage.getItem("gol-multiverse-table-v6");
+const savedV3=localStorage.getItem("gol-multiverse-table-v3");
+const savedV2=localStorage.getItem("gol-universe-table-v2");
+function useNewDefaultCheckpoint(){
+  maxGenerations=50;
+  const input=document.getElementById("maxGenerationsInput");
+  if(input)input.value=50;
+}
+if(savedV15){
+  try{applyState(JSON.parse(savedV15))}catch(e){}
+}else if(savedV14){
+  try{
+    applyState(JSON.parse(savedV14));
+    statusEl.textContent="v14 project migrated to v15 · built-in starting grids added";
+  }catch(e){}
+}else if(savedV13){
+  try{
+    applyState(JSON.parse(savedV13));
+    if(samePalette(sizeColors,OLD_V13_SIZE_COLORS))sizeColors=[...DEFAULT_SIZE_COLORS];
+    if(samePalette(outcomeColors,OLD_V13_OUTCOME_COLORS))outcomeColors=[...DEFAULT_OUTCOME_COLORS];
+    buildSizePalette();
+    buildOutcomePalette();
+    applyAllTileBaseColors();
+    statusEl.textContent="v13 project migrated to v14 · improved snowflake growth detection";
+  }catch(e){}
+}else if(savedV12){
+  try{
+    applyState(JSON.parse(savedV12));
+    statusEl.textContent="v12 project migrated to v13 · neighbor-context growth matching";
+  }catch(e){}
+}else if(savedV11){
+  try{
+    applyState(JSON.parse(savedV11));
+    useNewDefaultCheckpoint();
+    statusEl.textContent="v11 project migrated to v12 · classification checkpoint reset to 50";
+  }catch(e){}
+}else if(savedV10){
+  try{
+    applyState(JSON.parse(savedV10));
+    statusEl.textContent="v10 project migrated to v11";
+  }catch(e){}
+}else if(savedV9){
+  try{
+    applyState(JSON.parse(savedV9));
+    statusEl.textContent="v9 project migrated to v10";
+  }catch(e){}
+}else if(savedV8){
+  try{
+    applyState(JSON.parse(savedV8));
+    statusEl.textContent="v8 project migrated to v9";
+  }catch(e){}
+}else if(savedV7){
+  try{
+    applyState(JSON.parse(savedV7));
+    statusEl.textContent="v7 project migrated to exact infinite-board v8";
+  }catch(e){}
+}else if(savedV6){
+  try{
+    applyState(JSON.parse(savedV6));
+    statusEl.textContent="Previous project migrated to v8";
+  }catch(e){}
+}else if(savedV3){
+  try{
+    applyState(JSON.parse(savedV3));
+    statusEl.textContent="Previous multiverse project migrated";
+  }catch(e){}
+}else if(savedV2){
+  try{
+    applyState(JSON.parse(savedV2));
+    statusEl.textContent="Previous table customizations migrated";
+  }catch(e){}
+}
+
+if(!savedV15&&!savedV14&&!savedV13&&!savedV12){
+  useNewDefaultCheckpoint();
+}
+ensureDefaultPresets();
+setMode("view");
+runSearch();
+applyZoom();
+updatePatternChip();
+drawPatternEditor();
+initLabEvents();
+</script>
+</body>
+</html>
