@@ -8,3 +8,5 @@ The 2 parameters:
 hence, Conways universe B3/S23
 
 bla bla blah, look.
+
+_https://vojtaquark.github.io/Game-of-Life-Multiverse/_
